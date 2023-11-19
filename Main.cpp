@@ -2,18 +2,11 @@
 #include "pch.h"
 #include "Game.h"
 
-#ifdef DXTK_AUDIO
-#include <Dbt.h>
-#endif
 using namespace DirectX;
 
 namespace
 {
 	std::unique_ptr<Game> g_game;
-
-#ifdef DXTK_AUDIO
-	HDEVNOTIFY g_hNewAudio = nullptr;
-#endif
 };
 
 //GLOBALS
@@ -59,7 +52,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 		wcex.hCursor = LoadCursorW(nullptr, IDC_ARROW);
 		wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
 		wcex.lpszMenuName = nullptr;
-		wcex.lpszClassName = L"DirectXTKSimpleSampleWindowClass";
+		wcex.lpszClassName = L"Beware of the tall grass.";
 		wcex.hIconSm = LoadIconW(wcex.hInstance, L"IDI_ICON");
 		if (!RegisterClassExW(&wcex))
 			return 1;
@@ -72,7 +65,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 
 		AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
 
-		HWND hwnd = CreateWindowExW(0, L"DirectXTKSimpleSampleWindowClass", L"Direct X Game Dev Template", WS_OVERLAPPEDWINDOW,
+		HWND hwnd = CreateWindowExW(0, L"Beware of the tall grass.", L"Beware of the tall grass.", WS_OVERLAPPEDWINDOW,
 			CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, hInstance,
 			nullptr);
 
@@ -137,70 +130,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	switch (message)
 	{
-#ifdef DXTK_AUDIO
-	case WM_CREATE:
-		if (!g_hNewAudio)
-		{
-			// Ask for notification of new audio devices
-			DEV_BROADCAST_DEVICEINTERFACE filter = {};
-			filter.dbcc_size = sizeof(filter);
-			filter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
-			filter.dbcc_classguid = KSCATEGORY_AUDIO;
-
-			g_hNewAudio = RegisterDeviceNotification(hWnd, &filter, DEVICE_NOTIFY_WINDOW_HANDLE);
-		}
-		break;
-
-	case WM_CLOSE:
-		if (g_hNewAudio)
-		{
-			UnregisterDeviceNotification(g_hNewAudio);
-			g_hNewAudio = nullptr;
-		}
-		DestroyWindow(hWnd);
-		break;
-
-	case WM_DEVICECHANGE:
-		switch (wParam)
-		{
-		case DBT_DEVICEARRIVAL:
-		{
-			auto pDev = reinterpret_cast<PDEV_BROADCAST_HDR>(lParam);
-			if (pDev)
-			{
-				if (pDev->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE)
-				{
-					auto pInter = reinterpret_cast<const PDEV_BROADCAST_DEVICEINTERFACE>(pDev);
-					if (pInter->dbcc_classguid == KSCATEGORY_AUDIO)
-					{
-						if (g_game)
-							g_game->NewAudioDevice();
-					}
-				}
-			}
-		}
-		break;
-
-		case DBT_DEVICEREMOVECOMPLETE:
-		{
-			auto pDev = reinterpret_cast<PDEV_BROADCAST_HDR>(lParam);
-			if (pDev)
-			{
-				if (pDev->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE)
-				{
-					auto pInter = reinterpret_cast<const PDEV_BROADCAST_DEVICEINTERFACE>(pDev);
-					if (pInter->dbcc_classguid == KSCATEGORY_AUDIO)
-					{
-						if (g_game)
-							g_game->NewAudioDevice();
-					}
-				}
-			}
-		}
-		break;
-		}
-		return 0;
-#endif
 
 	case WM_PAINT:
 		if (s_in_sizemove && game)

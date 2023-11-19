@@ -40,9 +40,6 @@ public:
     void OnResuming();
     void OnWindowMoved();
     void OnWindowSizeChanged(int width, int height);
-#ifdef DXTK_AUDIO
-    void NewAudioDevice();
-#endif
 
     // Properties
     void GetDefaultSize( int& width, int& height ) const;
@@ -93,30 +90,16 @@ private:
 	//textures 
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_texture1;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_texture2;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_textureSkyBox;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_textureGrass;
 
 	//Shaders
 	Shader																	m_BasicShaderPair;
+    Shader																	m_GrassShader;
+    Shader																	m_SkyBoxShader;
 	ModelClass																m_BasicSphere;
-	ModelClass																m_BasicLabyrinth;
-	ModelClass																m_BasicModelBox;
-
-
-
-#ifdef DXTK_AUDIO
-    std::unique_ptr<DirectX::AudioEngine>                                   m_audEngine;
-    std::unique_ptr<DirectX::WaveBank>                                      m_waveBank;
-    std::unique_ptr<DirectX::SoundEffect>                                   m_soundEffect;
-    std::unique_ptr<DirectX::SoundEffectInstance>                           m_effect1;
-    std::unique_ptr<DirectX::SoundEffectInstance>                           m_effect2;
-#endif
-    
-
-#ifdef DXTK_AUDIO
-    uint32_t                                                                m_audioEvent;
-    float                                                                   m_audioTimerAcc;
-
-    bool                                                                    m_retryDefault;
-#endif
+	ModelClass																m_GroundModel;
+    ModelClass																m_GrassModel;
 
     DirectX::SimpleMath::Matrix                                             m_world;
     DirectX::SimpleMath::Matrix                                             m_view;

@@ -16,25 +16,17 @@ using namespace DirectX::SimpleMath;
 
 using Microsoft::WRL::ComPtr;
 
-Game::Game() noexcept(false)
-{
+Game::Game() noexcept(false) {
 	m_deviceResources = std::make_unique<DX::DeviceResources>();
 	m_deviceResources->RegisterDeviceNotify(this);
 }
 
-Game::~Game()
-{
-#ifdef DXTK_AUDIO
-	if (m_audEngine)
-	{
-		m_audEngine->Suspend();
-	}
-#endif
+Game::~Game() {
+
 }
 
 // Initialize the Direct3D resources required to run.
-void Game::Initialize(HWND window, int width, int height)
-{
+void Game::Initialize(HWND window, int width, int height) {
 
 	m_input.Initialise(window);
 
@@ -53,61 +45,25 @@ void Game::Initialize(HWND window, int width, int height)
 	m_Light.setDirection(-1.0f, -1.0f, 0.0f);
 
 	//setup camera
-	m_Camera01.setPosition(Vector3(0.0f, 0.0f, 4.0f));
+	m_Camera01.setPosition(Vector3(0.0f, 1.0f, 4.0f));
 	m_Camera01.setRotation(Vector3(0.0f, -180.0f, 0.0f));	//orientation is -90 becuase zero will be looking up at the sky straight up. 
 
-
-#ifdef DXTK_AUDIO
-	// Create DirectXTK for Audio objects
-	AUDIO_ENGINE_FLAGS eflags = AudioEngine_Default;
-#ifdef _DEBUG
-	eflags = eflags | AudioEngine_Debug;
-#endif
-
-	m_audEngine = std::make_unique<AudioEngine>(eflags);
-
-	m_audioEvent = 0;
-	m_audioTimerAcc = 10.f;
-	m_retryDefault = false;
-
-	m_waveBank = std::make_unique<WaveBank>(m_audEngine.get(), L"adpcmdroid.xwb");
-
-	m_soundEffect = std::make_unique<SoundEffect>(m_audEngine.get(), L"MusicMono_adpcm.wav");
-	m_effect1 = m_soundEffect->CreateInstance();
-	m_effect2 = m_waveBank->CreateInstance(10);
-
-	m_effect1->Play(true);
-	m_effect2->Play();
-#endif
 }
 
 #pragma region Frame Update
 // Executes the basic game loop.
-void Game::Tick()
-{
+void Game::Tick() {
 	//take in input
 	m_input.Update();								//update the hardware
 	m_gameInputCommands = m_input.getGameInput();	//retrieve the input for our game
 
 	//Update all game objects
-	m_timer.Tick([&]()
-		{
-			Update(m_timer);
+	m_timer.Tick([&]() {
+		Update(m_timer);
 		});
 
 	//Render all game content. 
 	Render();
-
-#ifdef DXTK_AUDIO
-	// Only update audio engine once per frame
-	if (!m_audEngine->IsCriticalError() && m_audEngine->Update())
-	{
-		// Setup a retry in 1 second
-		m_audioTimerAcc = 1.f;
-		m_retryDefault = true;
-	}
-#endif
-
 
 }
 
@@ -116,42 +72,11 @@ Camera Game::GetCamera() {
 }
 
 // Updates the world.
-void Game::Update(DX::StepTimer const& timer)
-{
+void Game::Update(DX::StepTimer const& timer) {
 	double deltaTime = timer.GetElapsedSeconds();
 	//note that currently.  Delta-time is not considered in the game object movement. 
 
-	/*if (m_gameInputCommands.left)
-	{
-		
-	}
-	if (m_gameInputCommands.right)
-	{
-		Vector3 rotation = m_Camera01.getRotation();
-		rotation.y -= (m_Camera01.getRotationSpeed() * deltaTime);
-		m_Camera01.setRotation(rotation);
-	}
-	if (m_gameInputCommands.forward)
-	{
-		Vector3 rotation = m_Camera01.getRotation();
-		rotation.x += (m_Camera01.getRotationSpeed() * deltaTime);
-		if (rotation.x > 90) {
-			rotation.x = 90;
-		}
-		m_Camera01.setRotation(rotation);
-	}
-	if (m_gameInputCommands.back)
-	{
-		Vector3 rotation = m_Camera01.getRotation();
-		rotation.x -= (m_Camera01.getRotationSpeed() * deltaTime);
-		if (rotation.x < -90) {
-			rotation.x = -90;
-		}
-		m_Camera01.setRotation(rotation);
-	}*/
-
-	if (m_gameInputCommands.rotX != 0)
-	{
+	if (m_gameInputCommands.rotX != 0) {
 		Vector3 rotation = m_Camera01.getRotation();
 		rotation.x += (-m_gameInputCommands.rotX * deltaTime * m_Camera01.getRotationSpeed());
 		m_gameInputCommands.rotX = 0;
@@ -164,72 +89,40 @@ void Game::Update(DX::StepTimer const& timer)
 		m_Camera01.setRotation(rotation);
 	}
 
-	if (m_gameInputCommands.rotY != 0)
-	{
+	if (m_gameInputCommands.rotY != 0) {
 		Vector3 rotation = m_Camera01.getRotation();
 		rotation.y += (-m_gameInputCommands.rotY * deltaTime * m_Camera01.getRotationSpeed());
 		m_gameInputCommands.rotY = 0;
 		m_Camera01.setRotation(rotation);
 	}
 
-	if (m_gameInputCommands.left)
-	{
-		Vector3 position = m_Camera01.getPosition(); //get the position
-		position -= (m_Camera01.getRight() * m_Camera01.getMoveSpeed() * deltaTime * m_gameInputCommands.sprint); //add the forward vector
+	if (m_gameInputCommands.left) {
+		Vector3 position = m_Camera01.getPosition();
+		position -= (m_Camera01.getRight() * m_Camera01.getMoveSpeed() * deltaTime * m_gameInputCommands.sprint);
 		m_Camera01.setPosition(position);
 	}
-	if (m_gameInputCommands.right)
-	{
-		Vector3 position = m_Camera01.getPosition(); //get the position
-		position += (m_Camera01.getRight() * m_Camera01.getMoveSpeed() * deltaTime * m_gameInputCommands.sprint); //add the forward vector
+	if (m_gameInputCommands.right) {
+		Vector3 position = m_Camera01.getPosition();
+		position += (m_Camera01.getRight() * m_Camera01.getMoveSpeed() * deltaTime * m_gameInputCommands.sprint);
 		m_Camera01.setPosition(position);
 	}
-	if (m_gameInputCommands.forward)
-	{
-		Vector3 position = m_Camera01.getPosition(); //get the position
-		position += (m_Camera01.getForward() * m_Camera01.getMoveSpeed() * deltaTime * m_gameInputCommands.sprint); //add the forward vector
+	if (m_gameInputCommands.forward) {
+		Vector3 position = m_Camera01.getPosition();
+		position += (m_Camera01.getForward() * m_Camera01.getMoveSpeed() * deltaTime * m_gameInputCommands.sprint);
 		m_Camera01.setPosition(position);
 	}
-	if (m_gameInputCommands.back)
-	{
-		Vector3 position = m_Camera01.getPosition(); //get the position
-		position -= (m_Camera01.getForward() * m_Camera01.getMoveSpeed() * deltaTime * m_gameInputCommands.sprint); //add the forward vector
+	if (m_gameInputCommands.back) {
+		Vector3 position = m_Camera01.getPosition();
+		position -= (m_Camera01.getForward() * m_Camera01.getMoveSpeed() * deltaTime * m_gameInputCommands.sprint);
 		m_Camera01.setPosition(position);
 	}
 
-	m_Camera01.Update();	//camera update.
+	m_Camera01.Update();
 
 	m_view = m_Camera01.getCameraMatrix();
 	m_world = Matrix::Identity;
 
-#ifdef DXTK_AUDIO
-	m_audioTimerAcc -= (float)timer.GetElapsedSeconds();
-	if (m_audioTimerAcc < 0)
-	{
-		if (m_retryDefault)
-		{
-			m_retryDefault = false;
-			if (m_audEngine->Reset())
-			{
-				// Restart looping audio
-				m_effect1->Play(true);
-			}
-		}
-		else
-		{
-			m_audioTimerAcc = 4.f;
-
-			m_waveBank->Play(m_audioEvent++);
-
-			if (m_audioEvent >= 11)
-				m_audioEvent = 0;
-		}
-	}
-#endif
-
-
-	if (m_input.Quit())
-	{
+	if (m_input.Quit()) {
 		ExitGame();
 	}
 }
@@ -237,11 +130,9 @@ void Game::Update(DX::StepTimer const& timer)
 
 #pragma region Frame Render
 // Draws the scene.
-void Game::Render()
-{
+void Game::Render() {
 	// Don't try to render anything before the first Update.
-	if (m_timer.GetFrameCount() == 0)
-	{
+	if (m_timer.GetFrameCount() == 0) {
 		return;
 	}
 
@@ -260,44 +151,17 @@ void Game::Render()
 	//Set Rendering states. 
 	context->OMSetBlendState(m_states->AlphaBlend(), nullptr, 0xFFFFFFFF);
 	context->OMSetDepthStencilState(m_states->DepthDefault(), 0);
-	context->RSSetState(m_states->CullClockwise());
-	//	context->RSSetState(m_states->Wireframe());
+	context->RSSetState(m_states->CullNone());
 
+	m_GrassShader.EnableShader(context);
+	m_GrassShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureGrass.Get());
+	m_GroundModel.Render(context);
 
-		// Turn our shaders on,  set parameters
-	m_BasicShaderPair.EnableShader(context);
-	m_BasicShaderPair.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texture1.Get());
-
-	//render our model
-	//m_BasicSphere.Render(context);
-
-	//prepare transform for second object. 
-	SimpleMath::Matrix newPosition = SimpleMath::Matrix::CreateTranslation(2.0f, 0.0f, 0.0f);
-	m_world = m_world * newPosition;
-
-	//setup and draw sphere
-	m_BasicShaderPair.EnableShader(context);
-	m_BasicShaderPair.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texture2.Get());
-	m_BasicLabyrinth.Render(context);
-
-	//prepare transform for floor object. 
-	m_world = SimpleMath::Matrix::Identity; //set world back to identity
-	SimpleMath::Matrix newPosition2 = SimpleMath::Matrix::CreateTranslation(0.0f, -0.6f, 0.0f);
-	m_world = m_world * newPosition2;
-
-	//setup and draw cube
-	m_BasicShaderPair.EnableShader(context);
-	m_BasicShaderPair.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texture1.Get());
-	//m_BasicModelBox.Render(context);
-
-
-	// Show the new frame.
 	m_deviceResources->Present();
 }
 
 // Helper method to clear the back buffers.
-void Game::Clear()
-{
+void Game::Clear() {
 	m_deviceResources->PIXBeginEvent(L"Clear");
 
 	// Clear the views.
@@ -320,59 +184,31 @@ void Game::Clear()
 
 #pragma region Message Handlers
 // Message handlers
-void Game::OnActivated()
-{
+void Game::OnActivated() {}
+
+void Game::OnDeactivated() {}
+
+void Game::OnSuspending() {
 }
 
-void Game::OnDeactivated()
-{
-}
-
-void Game::OnSuspending()
-{
-#ifdef DXTK_AUDIO
-	m_audEngine->Suspend();
-#endif
-}
-
-void Game::OnResuming()
-{
+void Game::OnResuming() {
 	m_timer.ResetElapsedTime();
-
-#ifdef DXTK_AUDIO
-	m_audEngine->Resume();
-#endif
 }
 
-void Game::OnWindowMoved()
-{
+void Game::OnWindowMoved() {
 	auto r = m_deviceResources->GetOutputSize();
 	m_deviceResources->WindowSizeChanged(r.right, r.bottom);
 }
 
-void Game::OnWindowSizeChanged(int width, int height)
-{
+void Game::OnWindowSizeChanged(int width, int height) {
 	if (!m_deviceResources->WindowSizeChanged(width, height))
 		return;
 
 	CreateWindowSizeDependentResources();
 }
 
-#ifdef DXTK_AUDIO
-void Game::NewAudioDevice()
-{
-	if (m_audEngine && !m_audEngine->IsAudioDevicePresent())
-	{
-		// Setup a retry in 1 second
-		m_audioTimerAcc = 1.f;
-		m_retryDefault = true;
-	}
-}
-#endif
-
 // Properties
-void Game::GetDefaultSize(int& width, int& height) const
-{
+void Game::GetDefaultSize(int& width, int& height) const {
 	width = 800;
 	height = 600;
 }
@@ -380,8 +216,7 @@ void Game::GetDefaultSize(int& width, int& height) const
 
 #pragma region Direct3D Resources
 // These are the resources that depend on the device.
-void Game::CreateDeviceDependentResources()
-{
+void Game::CreateDeviceDependentResources() {
 	auto context = m_deviceResources->GetD3DDeviceContext();
 	auto device = m_deviceResources->GetD3DDevice();
 
@@ -394,28 +229,29 @@ void Game::CreateDeviceDependentResources()
 	//setup our test model
 	m_BasicSphere.InitializeSphere(device);
 
-	m_BasicLabyrinth.InitializeModel(device, "Labyrinth.obj");
-	m_BasicModelBox.InitializeBox(device, 10.0f, 0.1f, 10.0f);	//box includes dimensions
+	m_GroundModel.InitializeBox(device, 50.0f, 0.5f, 50.0f);	//box includes dimensions
+
+	m_GrassModel.InitializeModel(device, "Models/tall_grass.obj");
 
 	//load and set up our Vertex and Pixel Shaders
 	m_BasicShaderPair.InitStandard(device, L"light_vs.cso", L"light_ps.cso");
-
+	m_SkyBoxShader.InitStandard(device, L"skybox_vs.cso", L"skybox_ps.cso");
+	m_GrassShader.InitStandard(device, L"grass_vs.cso", L"grass_ps.cso");
 	//load Textures
 	CreateDDSTextureFromFile(device, L"seafloor.dds", nullptr, m_texture1.ReleaseAndGetAddressOf());
 	CreateDDSTextureFromFile(device, L"EvilDrone_Diff.dds", nullptr, m_texture2.ReleaseAndGetAddressOf());
+	CreateDDSTextureFromFile(device, L"Textures/grass.dds", nullptr, m_textureGrass.ReleaseAndGetAddressOf());
 }
 
 // Allocate all memory resources that change on a window SizeChanged event.
-void Game::CreateWindowSizeDependentResources()
-{
+void Game::CreateWindowSizeDependentResources() {
 	auto size = m_deviceResources->GetOutputSize();
 	float aspectRatio = float(size.right) / float(size.bottom);
 	float fovAngleY = 70.0f * XM_PI / 180.0f;
 
 	// This is a simple example of change that can be made when the app is in
 	// portrait or snapped view.
-	if (aspectRatio < 1.0f)
-	{
+	if (aspectRatio < 1.0f) {
 		fovAngleY *= 2.0f;
 	}
 
@@ -429,8 +265,7 @@ void Game::CreateWindowSizeDependentResources()
 }
 
 
-void Game::OnDeviceLost()
-{
+void Game::OnDeviceLost() {
 	m_states.reset();
 	m_fxFactory.reset();
 	m_sprites.reset();
@@ -440,8 +275,7 @@ void Game::OnDeviceLost()
 	m_batchInputLayout.Reset();
 }
 
-void Game::OnDeviceRestored()
-{
+void Game::OnDeviceRestored() {
 	CreateDeviceDependentResources();
 
 	CreateWindowSizeDependentResources();

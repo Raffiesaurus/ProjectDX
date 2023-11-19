@@ -35,6 +35,7 @@
       <Filter>Rendering</Filter>
     </ClInclude>
     <ClInclude Include="Input.h" />
+    <ClInclude Include="SoundHandler.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -56,6 +57,7 @@
       <Filter>Rendering</Filter>
     </ClCompile>
     <ClCompile Include="Input.cpp" />
+    <ClCompile Include="SoundHandler.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />
@@ -87,6 +89,18 @@
       <Filter>Assets</Filter>
     </FxCompile>
     <FxCompile Include="light_vs.hlsl">
+      <Filter>Assets</Filter>
+    </FxCompile>
+    <FxCompile Include="skybox_ps.hlsl">
+      <Filter>Assets</Filter>
+    </FxCompile>
+    <FxCompile Include="skybox_vs.hlsl">
+      <Filter>Assets</Filter>
+    </FxCompile>
+    <FxCompile Include="grass_ps.hlsl">
+      <Filter>Assets</Filter>
+    </FxCompile>
+    <FxCompile Include="grass_vs.hlsl">
       <Filter>Assets</Filter>
     </FxCompile>
   </ItemGroup>
