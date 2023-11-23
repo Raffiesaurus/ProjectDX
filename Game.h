@@ -11,70 +11,67 @@
 #include "Input.h"
 #include "Camera.h"
 
-
 // A basic game implementation that creates a D3D11 device and
 // provides a game loop.
-class Game final : public DX::IDeviceNotify
-{
+class Game final : public DX::IDeviceNotify {
 public:
 
-    Game() noexcept(false);
-    ~Game();
+	Game() noexcept(false);
+	~Game();
 
-    // Initialization and management
-    void Initialize(HWND window, int width, int height);
+	// Initialization and management
+	void Initialize(HWND window, int width, int height);
 
-    // Basic game loop
-    void Tick();
+	// Basic game loop
+	void Tick();
 
-    Camera GetCamera();
+	Camera GetCamera();
 
-    // IDeviceNotify
-    virtual void OnDeviceLost() override;
-    virtual void OnDeviceRestored() override;
+	// IDeviceNotify
+	virtual void OnDeviceLost() override;
+	virtual void OnDeviceRestored() override;
 
-    // Messages
-    void OnActivated();
-    void OnDeactivated();
-    void OnSuspending();
-    void OnResuming();
-    void OnWindowMoved();
-    void OnWindowSizeChanged(int width, int height);
+	// Messages
+	void OnActivated();
+	void OnDeactivated();
+	void OnSuspending();
+	void OnResuming();
+	void OnWindowMoved();
+	void OnWindowSizeChanged(int width, int height);
+	void NewAudioDevice();
+	// Properties
+	void GetDefaultSize(int& width, int& height) const;
 
-    // Properties
-    void GetDefaultSize( int& width, int& height ) const;
-	
 private:
 
-	struct MatrixBufferType
-	{
+	struct MatrixBufferType {
 		DirectX::XMMATRIX world;
 		DirectX::XMMATRIX view;
 		DirectX::XMMATRIX projection;
-	}; 
+	};
 
-    void Update(DX::StepTimer const& timer);
-    void Render();
-    void Clear();
-    void CreateDeviceDependentResources();
-    void CreateWindowSizeDependentResources();
+	void Update(DX::StepTimer const& timer);
+	void Render();
+	void Clear();
+	void CreateDeviceDependentResources();
+	void CreateWindowSizeDependentResources();
 
-    // Device resources.
-    std::unique_ptr<DX::DeviceResources>    m_deviceResources;
+	// Device resources.
+	std::unique_ptr<DX::DeviceResources>    m_deviceResources;
 
-    // Rendering loop timer.
-    DX::StepTimer                           m_timer;
+	// Rendering loop timer.
+	DX::StepTimer                           m_timer;
 
 	//input manager. 
 	Input									m_input;
 	InputCommands							m_gameInputCommands;
 
-    // DirectXTK objects.
-    std::unique_ptr<DirectX::CommonStates>                                  m_states;
-    std::unique_ptr<DirectX::BasicEffect>                                   m_batchEffect;	
-    std::unique_ptr<DirectX::EffectFactory>                                 m_fxFactory;
-    std::unique_ptr<DirectX::SpriteBatch>                                   m_sprites;
-    std::unique_ptr<DirectX::SpriteFont>                                    m_font;
+	// DirectXTK objects.
+	std::unique_ptr<DirectX::CommonStates>                                  m_states;
+	std::unique_ptr<DirectX::BasicEffect>                                   m_batchEffect;
+	std::unique_ptr<DirectX::EffectFactory>                                 m_fxFactory;
+	std::unique_ptr<DirectX::SpriteBatch>                                   m_sprites;
+	std::unique_ptr<DirectX::SpriteFont>                                    m_font;
 
 	// Scene Objects
 	std::unique_ptr<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>>  m_batch;
@@ -90,18 +87,26 @@ private:
 	//textures 
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_texture1;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_texture2;
-    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_textureSkyBox;
-    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_textureGrass;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_textureSkyBox;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_textureGrass;
 
 	//Shaders
 	Shader																	m_BasicShaderPair;
-    Shader																	m_GrassShader;
-    Shader																	m_SkyBoxShader;
+	Shader																	m_GrassShader;
+	Shader																	m_SkyBoxShader;
 	ModelClass																m_BasicSphere;
 	ModelClass																m_GroundModel;
-    ModelClass																m_GrassModel;
+	ModelClass																m_GrassModel;
 
-    DirectX::SimpleMath::Matrix                                             m_world;
-    DirectX::SimpleMath::Matrix                                             m_view;
-    DirectX::SimpleMath::Matrix                                             m_projection;
+	DirectX::SimpleMath::Matrix                                             m_world;
+	DirectX::SimpleMath::Matrix                                             m_view;
+	DirectX::SimpleMath::Matrix                                             m_projection;
+
+	std::unique_ptr<DirectX::AudioEngine>                                   m_audEngine;
+	std::unique_ptr<DirectX::SoundEffect>                                   m_walk;
+	std::unique_ptr<DirectX::SoundEffect>									m_bgm;
+	std::unique_ptr<DirectX::SoundEffectInstance>							m_bgmLoop;
+	bool																	m_retryAudio;
+
+	bool playerMoving;
 };

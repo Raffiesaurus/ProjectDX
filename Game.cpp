@@ -18,11 +18,16 @@ using Microsoft::WRL::ComPtr;
 
 Game::Game() noexcept(false) {
 	m_deviceResources = std::make_unique<DX::DeviceResources>();
+	playerMoving = false;
 	m_deviceResources->RegisterDeviceNotify(this);
 }
 
 Game::~Game() {
+	if (m_audEngine) {
+		m_audEngine->Suspend();
+	}
 
+	m_bgmLoop.reset();
 }
 
 // Initialize the Direct3D resources required to run.
@@ -48,6 +53,13 @@ void Game::Initialize(HWND window, int width, int height) {
 	m_Camera01.setPosition(Vector3(0.0f, 1.0f, 4.0f));
 	m_Camera01.setRotation(Vector3(0.0f, -180.0f, 0.0f));	//orientation is -90 becuase zero will be looking up at the sky straight up. 
 
+	AUDIO_ENGINE_FLAGS eflags = AudioEngine_Default;
+	m_audEngine = std::make_unique<AudioEngine>(eflags);
+	m_walk = std::make_unique<DirectX::SoundEffect>(m_audEngine.get(), L"Audio/walk.wav");
+	m_bgm = std::make_unique<DirectX::SoundEffect>(m_audEngine.get(), L"Audio/bgm.wav");
+	m_bgmLoop = m_bgm->CreateInstance();
+	m_bgmLoop->Play(true);
+	m_bgmLoop->SetVolume(0.1);
 }
 
 #pragma region Frame Update
@@ -62,9 +74,18 @@ void Game::Tick() {
 		Update(m_timer);
 		});
 
+	/*if (!m_audEngine->IsCriticalError() && m_audEngine->Update()) {
+		m_retryAudio = true;
+	}*/
+
 	//Render all game content. 
 	Render();
 
+	//if (!m_audEngine->IsCriticalError() && m_audEngine->Update()) {
+	//	// Setup a retry in 1 second
+	//	m_audioTimerAcc = 1.f;
+	//	m_retryDefault = true;
+	//}
 }
 
 Camera Game::GetCamera() {
@@ -74,7 +95,6 @@ Camera Game::GetCamera() {
 // Updates the world.
 void Game::Update(DX::StepTimer const& timer) {
 	double deltaTime = timer.GetElapsedSeconds();
-	//note that currently.  Delta-time is not considered in the game object movement. 
 
 	if (m_gameInputCommands.rotX != 0) {
 		Vector3 rotation = m_Camera01.getRotation();
@@ -117,10 +137,29 @@ void Game::Update(DX::StepTimer const& timer) {
 		m_Camera01.setPosition(position);
 	}
 
+	if (m_gameInputCommands.forward || m_gameInputCommands.back || m_gameInputCommands.left || m_gameInputCommands.right) {
+		if (!m_walk->IsInUse()) {
+			float pitch = 0.1;
+			if (m_gameInputCommands.sprint > 1) {
+				pitch = 0.5;
+			}
+			m_walk->Play(0.5, pitch, 0);
+		}
+	}
+
 	m_Camera01.Update();
 
 	m_view = m_Camera01.getCameraMatrix();
 	m_world = Matrix::Identity;
+
+	if (m_retryAudio) {
+		m_retryAudio = false;
+
+		if (m_audEngine->Reset()) {
+			if (m_bgmLoop)
+				m_bgmLoop->Play(true);
+		}
+	}
 
 	if (m_input.Quit()) {
 		ExitGame();
@@ -157,6 +196,13 @@ void Game::Render() {
 	m_GrassShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureGrass.Get());
 	m_GroundModel.Render(context);
 
+	//SimpleMath::Matrix translate = SimpleMath::Matrix::CreateTranslation(Vector3(15, 15, 15));
+	//m_world *= translate;
+
+	//m_SkyBoxShader.EnableShader(context);
+	//m_SkyBoxShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureSkyBox.Get());
+	m_BasicSphere.Render(context);
+
 	m_deviceResources->Present();
 }
 
@@ -184,15 +230,21 @@ void Game::Clear() {
 
 #pragma region Message Handlers
 // Message handlers
-void Game::OnActivated() {}
+void Game::OnActivated() {
+	m_audEngine->Resume();
+}
 
-void Game::OnDeactivated() {}
+void Game::OnDeactivated() {
+	m_audEngine->Suspend();
+}
 
 void Game::OnSuspending() {
+	m_audEngine->Suspend();
 }
 
 void Game::OnResuming() {
 	m_timer.ResetElapsedTime();
+	m_audEngine->Resume();
 }
 
 void Game::OnWindowMoved() {
@@ -205,6 +257,14 @@ void Game::OnWindowSizeChanged(int width, int height) {
 		return;
 
 	CreateWindowSizeDependentResources();
+}
+
+void Game::NewAudioDevice() {
+	//if (m_audEngine && !m_audEngine->IsAudioDevicePresent()) {
+	//	// Setup a retry in 1 second
+	//	m_audioTimerAcc = 1.f;
+	//	m_retryDefault = true;
+	//}
 }
 
 // Properties
@@ -227,7 +287,7 @@ void Game::CreateDeviceDependentResources() {
 	m_batch = std::make_unique<PrimitiveBatch<VertexPositionColor>>(context);
 
 	//setup our test model
-	m_BasicSphere.InitializeSphere(device);
+	m_BasicSphere.InitializeBox(device, 100, 100, 100);
 
 	m_GroundModel.InitializeBox(device, 500.0f, 0.5f, 500.0f);	//box includes dimensions
 
@@ -238,8 +298,8 @@ void Game::CreateDeviceDependentResources() {
 	m_SkyBoxShader.InitStandard(device, L"skybox_vs.cso", L"skybox_ps.cso");
 	m_GrassShader.InitStandard(device, L"grass_vs.cso", L"grass_ps.cso");
 	//load Textures
-	CreateDDSTextureFromFile(device, L"seafloor.dds", nullptr, m_texture1.ReleaseAndGetAddressOf());
-	CreateDDSTextureFromFile(device, L"EvilDrone_Diff.dds", nullptr, m_texture2.ReleaseAndGetAddressOf());
+
+	CreateDDSTextureFromFile(device, L"Textures/skymap.dds", nullptr, m_texture2.ReleaseAndGetAddressOf());
 	CreateDDSTextureFromFile(device, L"Textures/grass.dds", nullptr, m_textureGrass.ReleaseAndGetAddressOf());
 }
 

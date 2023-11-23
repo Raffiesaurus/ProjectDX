@@ -35,7 +35,7 @@
       <Filter>Rendering</Filter>
     </ClInclude>
     <ClInclude Include="Input.h" />
-    <ClInclude Include="SoundHandler.h" />
+    <ClInclude Include="Skybox.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -57,7 +57,7 @@
       <Filter>Rendering</Filter>
     </ClCompile>
     <ClCompile Include="Input.cpp" />
-    <ClCompile Include="SoundHandler.cpp" />
+    <ClCompile Include="Skybox.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />

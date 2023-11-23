@@ -1,12 +1,13 @@
 
 #include "pch.h"
 #include "Game.h"
+#include <Dbt.h>
 
 using namespace DirectX;
 
-namespace
-{
+namespace {
 	std::unique_ptr<Game> g_game;
+	HDEVNOTIFY g_hNewAudio = nullptr;
 };
 
 //GLOBALS
@@ -23,8 +24,7 @@ extern "C"
 }
 
 // Entry point
-int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
-{
+int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow) {
 	//macros to tell the compiler the following parameters are unused and to optimise accordingly
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
@@ -81,8 +81,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 		g_game->Initialize(hwnd, rc.right - rc.left, rc.bottom - rc.top);
 
 		//lastly check if initial fullscreen mode is set. 
-		if (s_fullscreen)
-		{
+		if (s_fullscreen) {
 			SetWindowLongPtr(hwnd, GWL_STYLE, 0);
 			SetWindowLongPtr(hwnd, GWL_EXSTYLE, WS_EX_TOPMOST);
 
@@ -94,15 +93,11 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 
 	// Main message loop
 	MSG msg = {};
-	while (WM_QUIT != msg.message)
-	{
-		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
-		{
+	while (WM_QUIT != msg.message) {
+		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
-		}
-		else
-		{
+		} else {
 			g_game->Tick();
 		}
 	}
@@ -115,8 +110,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 }
 
 // Windows procedure
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
-{
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	PAINTSTRUCT ps;
 	HDC hdc;
 
@@ -128,48 +122,89 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	auto game = reinterpret_cast<Game*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 
-	switch (message)
-	{
+	switch (message) {
+	case WM_CREATE:
+		if (!g_hNewAudio) {
+			// Ask for notification of new audio devices
+			DEV_BROADCAST_DEVICEINTERFACE filter = {};
+			filter.dbcc_size = sizeof(filter);
+			filter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
+			filter.dbcc_classguid = KSCATEGORY_AUDIO;
 
-	case WM_PAINT:
-		if (s_in_sizemove && game)
-		{
-			game->Tick();
+			g_hNewAudio = RegisterDeviceNotification(hWnd, &filter, DEVICE_NOTIFY_WINDOW_HANDLE);
 		}
-		else
+		break;
+
+	case WM_CLOSE:
+		if (g_hNewAudio) {
+			UnregisterDeviceNotification(g_hNewAudio);
+			g_hNewAudio = nullptr;
+		}
+		DestroyWindow(hWnd);
+		break;
+
+	case WM_DEVICECHANGE:
+		switch (wParam) {
+		case DBT_DEVICEARRIVAL:
 		{
+			auto pDev = reinterpret_cast<PDEV_BROADCAST_HDR>(lParam);
+			if (pDev) {
+				if (pDev->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
+					auto pInter = reinterpret_cast<const PDEV_BROADCAST_DEVICEINTERFACE>(pDev);
+					if (pInter->dbcc_classguid == KSCATEGORY_AUDIO) {
+						if (g_game)
+							g_game->NewAudioDevice();
+					}
+				}
+			}
+		}
+		break;
+
+		case DBT_DEVICEREMOVECOMPLETE:
+		{
+			auto pDev = reinterpret_cast<PDEV_BROADCAST_HDR>(lParam);
+			if (pDev) {
+				if (pDev->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
+					auto pInter = reinterpret_cast<const PDEV_BROADCAST_DEVICEINTERFACE>(pDev);
+					if (pInter->dbcc_classguid == KSCATEGORY_AUDIO) {
+						if (g_game)
+							g_game->NewAudioDevice();
+					}
+				}
+			}
+		}
+		break;
+		}
+		return 0;
+	case WM_PAINT:
+		if (s_in_sizemove && game) {
+			game->Tick();
+		} else {
 			hdc = BeginPaint(hWnd, &ps);
 			EndPaint(hWnd, &ps);
 		}
 		break;
 
 	case WM_MOVE:
-		if (game)
-		{
+		if (game) {
 			game->OnWindowMoved();
 		}
 		break;
 
 	case WM_SIZE:
-		if (wParam == SIZE_MINIMIZED)
-		{
-			if (!s_minimized)
-			{
+		if (wParam == SIZE_MINIMIZED) {
+			if (!s_minimized) {
 				s_minimized = true;
 				if (!s_in_suspend && game)
 					game->OnSuspending();
 				s_in_suspend = true;
 			}
-		}
-		else if (s_minimized)
-		{
+		} else if (s_minimized) {
 			s_minimized = false;
 			if (s_in_suspend && game)
 				game->OnResuming();
 			s_in_suspend = false;
-		}
-		else if (!s_in_sizemove && game)
-		{
+		} else if (!s_in_sizemove && game) {
 			game->OnWindowSizeChanged(LOWORD(lParam), HIWORD(lParam));
 		}
 		break;
@@ -180,8 +215,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	case WM_EXITSIZEMOVE:
 		s_in_sizemove = false;
-		if (game)
-		{
+		if (game) {
 			RECT rc;
 			GetClientRect(hWnd, &rc);
 
@@ -198,10 +232,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	break;
 
 	case WM_ACTIVATEAPP:
-		if (game)
-		{
-			if (s_fullscreen)
-			{
+		if (game) {
+			if (s_fullscreen) {
 				SetWindowLongPtr(hWnd, GWL_STYLE, 0);
 				SetWindowLongPtr(hWnd, GWL_EXSTYLE, WS_EX_TOPMOST);
 
@@ -209,13 +241,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 				ShowWindow(hWnd, SW_SHOWMAXIMIZED);
 			}
-			if (wParam)
-			{
+			if (wParam) {
 				game->OnActivated();
 
-			}
-			else
-			{
+			} else {
 				game->OnDeactivated();
 			}
 		}
@@ -224,8 +253,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 
 	case WM_POWERBROADCAST:
-		switch (wParam)
-		{
+		switch (wParam) {
 		case PBT_APMQUERYSUSPEND:
 			if (!s_in_suspend && game)
 				game->OnSuspending();
@@ -233,8 +261,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			return TRUE;
 
 		case PBT_APMRESUMESUSPEND:
-			if (!s_minimized)
-			{
+			if (!s_minimized) {
 				if (s_in_suspend && game)
 					game->OnResuming();
 				s_in_suspend = false;
@@ -270,11 +297,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	case WM_SYSKEYDOWN:
 		//ALT ENTER TEST
-		if (wParam == VK_RETURN && (lParam & 0x60000000) == 0x20000000)
-		{
+		if (wParam == VK_RETURN && (lParam & 0x60000000) == 0x20000000) {
 			// Implements the classic ALT+ENTER fullscreen toggle
-			if (s_fullscreen)
-			{
+			if (s_fullscreen) {
 				SetWindowLongPtr(hWnd, GWL_STYLE, WS_OVERLAPPEDWINDOW);
 				SetWindowLongPtr(hWnd, GWL_EXSTYLE, 0);
 
@@ -286,9 +311,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				ShowWindow(hWnd, SW_SHOWNORMAL);
 
 				SetWindowPos(hWnd, HWND_TOP, 0, 0, width, height, SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
-			}
-			else
-			{
+			} else {
 				SetWindowLongPtr(hWnd, GWL_STYLE, 0);
 				SetWindowLongPtr(hWnd, GWL_EXSTYLE, WS_EX_TOPMOST);
 
@@ -314,7 +337,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 
 // Exit helper
-void ExitGame()
-{
+void ExitGame() {
 	PostQuitMessage(0);
 }
