@@ -229,7 +229,7 @@ void Game::CreateDeviceDependentResources() {
 	//setup our test model
 	m_BasicSphere.InitializeSphere(device);
 
-	m_GroundModel.InitializeBox(device, 50.0f, 0.5f, 50.0f);	//box includes dimensions
+	m_GroundModel.InitializeBox(device, 500.0f, 0.5f, 500.0f);	//box includes dimensions
 
 	m_GrassModel.InitializeModel(device, "Models/tall_grass.obj");
 
