@@ -118,64 +118,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	static bool s_in_suspend = false;
 	static bool s_minimized = false;
 
-	// TODO: Set s_fullscreen to true if defaulting to fullscreen.
-
 	auto game = reinterpret_cast<Game*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 
 	switch (message) {
-	case WM_CREATE:
-		if (!g_hNewAudio) {
-			// Ask for notification of new audio devices
-			DEV_BROADCAST_DEVICEINTERFACE filter = {};
-			filter.dbcc_size = sizeof(filter);
-			filter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
-			filter.dbcc_classguid = KSCATEGORY_AUDIO;
-
-			g_hNewAudio = RegisterDeviceNotification(hWnd, &filter, DEVICE_NOTIFY_WINDOW_HANDLE);
-		}
-		break;
-
-	case WM_CLOSE:
-		if (g_hNewAudio) {
-			UnregisterDeviceNotification(g_hNewAudio);
-			g_hNewAudio = nullptr;
-		}
-		DestroyWindow(hWnd);
-		break;
-
-	case WM_DEVICECHANGE:
-		switch (wParam) {
-		case DBT_DEVICEARRIVAL:
-		{
-			auto pDev = reinterpret_cast<PDEV_BROADCAST_HDR>(lParam);
-			if (pDev) {
-				if (pDev->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
-					auto pInter = reinterpret_cast<const PDEV_BROADCAST_DEVICEINTERFACE>(pDev);
-					if (pInter->dbcc_classguid == KSCATEGORY_AUDIO) {
-						if (g_game)
-							g_game->NewAudioDevice();
-					}
-				}
-			}
-		}
-		break;
-
-		case DBT_DEVICEREMOVECOMPLETE:
-		{
-			auto pDev = reinterpret_cast<PDEV_BROADCAST_HDR>(lParam);
-			if (pDev) {
-				if (pDev->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
-					auto pInter = reinterpret_cast<const PDEV_BROADCAST_DEVICEINTERFACE>(pDev);
-					if (pInter->dbcc_classguid == KSCATEGORY_AUDIO) {
-						if (g_game)
-							g_game->NewAudioDevice();
-					}
-				}
-			}
-		}
-		break;
-		}
-		return 0;
 	case WM_PAINT:
 		if (s_in_sizemove && game) {
 			game->Tick();

@@ -5,10 +5,6 @@
 #include "pch.h"
 #include "Game.h"
 
-
-//toreorganise
-#include <fstream>
-
 extern void ExitGame();
 
 using namespace DirectX;
@@ -30,7 +26,6 @@ Game::~Game() {
 	m_bgmLoop.reset();
 }
 
-// Initialize the Direct3D resources required to run.
 void Game::Initialize(HWND window, int width, int height) {
 
 	m_input.Initialise(window);
@@ -43,15 +38,13 @@ void Game::Initialize(HWND window, int width, int height) {
 	m_deviceResources->CreateWindowSizeDependentResources();
 	CreateWindowSizeDependentResources();
 
-	//setup light
 	m_Light.setAmbientColour(0.3f, 0.3f, 0.3f, 1.0f);
 	m_Light.setDiffuseColour(1.0f, 1.0f, 1.0f, 1.0f);
 	m_Light.setPosition(2.0f, 1.0f, 1.0f);
 	m_Light.setDirection(-1.0f, -1.0f, 0.0f);
 
-	//setup camera
 	m_Camera01.setPosition(Vector3(0.0f, 1.0f, 4.0f));
-	m_Camera01.setRotation(Vector3(0.0f, -180.0f, 0.0f));	//orientation is -90 becuase zero will be looking up at the sky straight up. 
+	m_Camera01.setRotation(Vector3(0.0f, -180.0f, 0.0f));
 
 	AUDIO_ENGINE_FLAGS eflags = AudioEngine_Default;
 	m_audEngine = std::make_unique<AudioEngine>(eflags);
@@ -63,36 +56,21 @@ void Game::Initialize(HWND window, int width, int height) {
 }
 
 #pragma region Frame Update
-// Executes the basic game loop.
 void Game::Tick() {
-	//take in input
-	m_input.Update();								//update the hardware
-	m_gameInputCommands = m_input.getGameInput();	//retrieve the input for our game
+	m_input.Update();
+	m_gameInputCommands = m_input.getGameInput();
 
-	//Update all game objects
 	m_timer.Tick([&]() {
 		Update(m_timer);
 		});
 
-	/*if (!m_audEngine->IsCriticalError() && m_audEngine->Update()) {
-		m_retryAudio = true;
-	}*/
-
-	//Render all game content. 
 	Render();
-
-	//if (!m_audEngine->IsCriticalError() && m_audEngine->Update()) {
-	//	// Setup a retry in 1 second
-	//	m_audioTimerAcc = 1.f;
-	//	m_retryDefault = true;
-	//}
 }
 
 Camera Game::GetCamera() {
 	return m_Camera01;
 }
 
-// Updates the world.
 void Game::Update(DX::StepTimer const& timer) {
 	double deltaTime = timer.GetElapsedSeconds();
 
@@ -168,9 +146,7 @@ void Game::Update(DX::StepTimer const& timer) {
 #pragma endregion
 
 #pragma region Frame Render
-// Draws the scene.
 void Game::Render() {
-	// Don't try to render anything before the first Update.
 	if (m_timer.GetFrameCount() == 0) {
 		return;
 	}
@@ -180,37 +156,21 @@ void Game::Render() {
 	m_deviceResources->PIXBeginEvent(L"Render");
 	auto context = m_deviceResources->GetD3DDeviceContext();
 
-	// Draw Text to the screen
-  //  m_deviceResources->PIXBeginEvent(L"Draw sprite");
-  //  m_sprites->Begin();
-		//m_font->DrawString(m_sprites.get(), L"DirectXTK Demo Window", XMFLOAT2(10, 10), Colors::Yellow);
-  //  m_sprites->End();
-  //  m_deviceResources->PIXEndEvent();
 
-	//Set Rendering states. 
-	context->OMSetBlendState(m_states->AlphaBlend(), nullptr, 0xFFFFFFFF);
+	context->OMSetBlendState(m_states->Opaque(), nullptr, 0xFFFFFFFF);
 	context->OMSetDepthStencilState(m_states->DepthDefault(), 0);
-	context->RSSetState(m_states->CullNone());
+	context->RSSetState(m_states->CullClockwise());
 
-	m_GrassShader.EnableShader(context);
-	m_GrassShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureGrass.Get());
+	m_GroundShader.EnableShader(context);
+	m_GroundShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureGrass.Get());
 	m_GroundModel.Render(context);
-
-	//SimpleMath::Matrix translate = SimpleMath::Matrix::CreateTranslation(Vector3(15, 15, 15));
-	//m_world *= translate;
-
-	//m_SkyBoxShader.EnableShader(context);
-	//m_SkyBoxShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureSkyBox.Get());
-	m_BasicSphere.Render(context);
 
 	m_deviceResources->Present();
 }
 
-// Helper method to clear the back buffers.
 void Game::Clear() {
 	m_deviceResources->PIXBeginEvent(L"Clear");
 
-	// Clear the views.
 	auto context = m_deviceResources->GetD3DDeviceContext();
 	auto renderTarget = m_deviceResources->GetRenderTargetView();
 	auto depthStencil = m_deviceResources->GetDepthStencilView();
@@ -219,7 +179,6 @@ void Game::Clear() {
 	context->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 	context->OMSetRenderTargets(1, &renderTarget, depthStencil);
 
-	// Set the viewport.
 	auto viewport = m_deviceResources->GetScreenViewport();
 	context->RSSetViewports(1, &viewport);
 
@@ -229,7 +188,7 @@ void Game::Clear() {
 #pragma endregion
 
 #pragma region Message Handlers
-// Message handlers
+
 void Game::OnActivated() {
 	m_audEngine->Resume();
 }
@@ -259,15 +218,6 @@ void Game::OnWindowSizeChanged(int width, int height) {
 	CreateWindowSizeDependentResources();
 }
 
-void Game::NewAudioDevice() {
-	//if (m_audEngine && !m_audEngine->IsAudioDevicePresent()) {
-	//	// Setup a retry in 1 second
-	//	m_audioTimerAcc = 1.f;
-	//	m_retryDefault = true;
-	//}
-}
-
-// Properties
 void Game::GetDefaultSize(int& width, int& height) const {
 	width = 800;
 	height = 600;
@@ -275,7 +225,6 @@ void Game::GetDefaultSize(int& width, int& height) const {
 #pragma endregion
 
 #pragma region Direct3D Resources
-// These are the resources that depend on the device.
 void Game::CreateDeviceDependentResources() {
 	auto context = m_deviceResources->GetD3DDeviceContext();
 	auto device = m_deviceResources->GetD3DDevice();
@@ -286,36 +235,33 @@ void Game::CreateDeviceDependentResources() {
 	m_font = std::make_unique<SpriteFont>(device, L"SegoeUI_18.spritefont");
 	m_batch = std::make_unique<PrimitiveBatch<VertexPositionColor>>(context);
 
-	//setup our test model
-	m_BasicSphere.InitializeBox(device, 100, 100, 100);
-
-	m_GroundModel.InitializeBox(device, 500.0f, 0.5f, 500.0f);	//box includes dimensions
+	m_GroundModel.InitializeBox(device, 100.0f, 0.5f, 100.0f);
 
 	m_GrassModel.InitializeModel(device, "Models/tall_grass.obj");
+	m_SkyboxModel.InitializeBox(device, 1, 1, 1);
 
-	//load and set up our Vertex and Pixel Shaders
-	m_BasicShaderPair.InitStandard(device, L"light_vs.cso", L"light_ps.cso");
+	m_ParkModel.InitializeModel(device, "Models/OBJ.obj");
+	m_LightShader.InitStandard(device, L"light_vs.cso", L"light_ps.cso");
 	m_SkyBoxShader.InitStandard(device, L"skybox_vs.cso", L"skybox_ps.cso");
 	m_GrassShader.InitStandard(device, L"grass_vs.cso", L"grass_ps.cso");
-	//load Textures
+	m_GroundShader.InitStandard(device, L"ground_vs.cso", L"ground_ps.cso");
 
-	CreateDDSTextureFromFile(device, L"Textures/skymap.dds", nullptr, m_texture2.ReleaseAndGetAddressOf());
+	CreateDDSTextureFromFile(device, L"Textures/cubemap.dds", nullptr, m_cubemap.ReleaseAndGetAddressOf());
 	CreateDDSTextureFromFile(device, L"Textures/grass.dds", nullptr, m_textureGrass.ReleaseAndGetAddressOf());
+	CreateDDSTextureFromFile(device, L"Textures/skybox.dds", nullptr, m_textureSkyBox.ReleaseAndGetAddressOf());
+	CreateDDSTextureFromFile(device, L"Textures/ground.dds", nullptr, m_textureGround.ReleaseAndGetAddressOf());
+	m_world = Matrix::Identity;
 }
 
-// Allocate all memory resources that change on a window SizeChanged event.
 void Game::CreateWindowSizeDependentResources() {
 	auto size = m_deviceResources->GetOutputSize();
 	float aspectRatio = float(size.right) / float(size.bottom);
 	float fovAngleY = 70.0f * XM_PI / 180.0f;
 
-	// This is a simple example of change that can be made when the app is in
-	// portrait or snapped view.
 	if (aspectRatio < 1.0f) {
 		fovAngleY *= 2.0f;
 	}
 
-	// This sample makes use of a right-handed coordinate system using row-major matrices.
 	m_projection = Matrix::CreatePerspectiveFieldOfView(
 		fovAngleY,
 		aspectRatio,

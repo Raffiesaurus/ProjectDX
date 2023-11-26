@@ -1,6 +1,3 @@
-// Light vertex shader
-// Standard issue vertex shader, apply matrices, pass info to pixel shader
-
 cbuffer MatrixBuffer : register(b0)
 {
     matrix worldMatrix;
@@ -29,21 +26,16 @@ OutputType main(InputType input)
     
     input.position.w = 1.0f;
 
-    // Calculate the position of the vertex against the world, view, and projection matrices.
     output.position = mul(input.position, worldMatrix);
     output.position = mul(output.position, viewMatrix);
     output.position = mul(output.position, projectionMatrix);
     
-    // Store the texture coordinates for the pixel shader.
     output.tex = input.tex;
 
-	 // Calculate the normal vector against the world matrix only.
     output.normal = mul(input.normal, (float3x3)worldMatrix);
 	
-    // Normalize the normal vector.
     output.normal = normalize(output.normal);
 
-	// world position of vertex (for point light)
 	output.position3D = (float3)mul(input.position, worldMatrix);
 
     return output;

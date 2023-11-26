@@ -35,7 +35,6 @@
       <Filter>Rendering</Filter>
     </ClInclude>
     <ClInclude Include="Input.h" />
-    <ClInclude Include="Skybox.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -57,7 +56,6 @@
       <Filter>Rendering</Filter>
     </ClCompile>
     <ClCompile Include="Input.cpp" />
-    <ClCompile Include="Skybox.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />
@@ -79,10 +77,10 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="colour_ps.hlsl">
+    <FxCompile Include="grass_ps.hlsl">
       <Filter>Assets</Filter>
     </FxCompile>
-    <FxCompile Include="colour_vs.hlsl">
+    <FxCompile Include="grass_vs.hlsl">
       <Filter>Assets</Filter>
     </FxCompile>
     <FxCompile Include="light_ps.hlsl">
@@ -97,10 +95,10 @@
     <FxCompile Include="skybox_vs.hlsl">
       <Filter>Assets</Filter>
     </FxCompile>
-    <FxCompile Include="grass_ps.hlsl">
+    <FxCompile Include="ground_ps.hlsl">
       <Filter>Assets</Filter>
     </FxCompile>
-    <FxCompile Include="grass_vs.hlsl">
+    <FxCompile Include="ground_vs.hlsl">
       <Filter>Assets</Filter>
     </FxCompile>
   </ItemGroup>
