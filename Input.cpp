@@ -70,7 +70,7 @@ void Input::Update()
 		if (kb.S)	m_GameInput.back = true;
 		else		m_GameInput.back = false;
 
-		if (kb.LeftShift || kb.RightShift)	m_GameInput.sprint = 5;
+		if (kb.LeftShift || kb.RightShift)	m_GameInput.sprint = 2;
 		else		m_GameInput.sprint = 1;
 
 		// Camera Control

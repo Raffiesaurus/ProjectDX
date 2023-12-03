@@ -18,6 +18,11 @@ Game::Game() noexcept(false) {
 	m_deviceResources->RegisterDeviceNotify(this);
 	m_playerScore = 0;
 	m_oppScore = 0;
+	m_rotateMan = false;
+	m_manStartRotation = DirectX::SimpleMath::Quaternion::CreateFromAxisAngle(DirectX::SimpleMath::Vector3(0, 1, 0), 0);
+	m_manEndRotation = DirectX::SimpleMath::Quaternion::CreateFromAxisAngle(DirectX::SimpleMath::Vector3(0, 1, 0), 360);
+	m_rotateStartFrame = 0;
+	m_rotateEndFrame = 0;
 }
 
 Game::~Game() {
@@ -52,7 +57,7 @@ void Game::Initialize(HWND window, int width, int height) {
 	m_Camera01.setRotation(Vector3(0.0f, -180.0f, 0.0f));
 
 	m_football_position = XMFLOAT3(0, 0.32, 0);
-	m_football_drag = 0.01;
+	m_football_drag = 0.001;
 
 	m_checkBallMoveFlag = false;
 
@@ -66,7 +71,7 @@ void Game::Initialize(HWND window, int width, int height) {
 	m_audio_crowd_ambience = std::make_unique<DirectX::SoundEffect>(m_audEngine.get(), L"Audio/crowd-ambience.wav");
 	m_audio_ambience_loop = m_audio_crowd_ambience->CreateInstance();
 	m_audio_ambience_loop->Play(true);
-	m_audio_ambience_loop->SetVolume(0.1);
+	m_audio_ambience_loop->SetVolume(0.75);
 
 	playerScoreString = std::to_string(m_playerScore);
 	oppScoreString = std::to_string(m_oppScore);
@@ -143,7 +148,7 @@ void Game::Update(DX::StepTimer const& timer) {
 			if (m_gameInputCommands.sprint > 1) {
 				pitch = 0.5;
 			}
-			m_audio_walk->Play(0.5, pitch, 0);
+			m_audio_walk->Play(0.3, pitch, 0);
 		}
 	}
 
@@ -177,102 +182,53 @@ void Game::Update(DX::StepTimer const& timer) {
 		direction *= 2;
 		m_football_offset = direction;
 		if (!m_audio_ball_hit->IsInUse()) {
-			m_audio_ball_hit->Play(0.1, 0.8, 0);
+			m_audio_ball_hit->Play(0.4, 0.8, 0);
 		}
 	}
 
-}
-#pragma endregion
-
-#pragma region Frame Render
-void Game::Render() {
-	if (m_timer.GetFrameCount() == 0) {
-		return;
-	}
-
-	Clear();
-
-	m_deviceResources->PIXBeginEvent(L"Render");
-	auto context = m_deviceResources->GetD3DDeviceContext();
-
-	context->OMSetBlendState(m_states->AlphaBlend(), nullptr, 0xFFFFFFFF);
-	context->OMSetDepthStencilState(m_states->DepthDefault(), 0);
-	context->RSSetState(m_states->CullNone());
-
-	m_BasicShader.EnableShader(context);
-	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureGrass.Get(), 150);
-	m_GroundModel.Render(context);
-
-	m_world *= SimpleMath::Matrix::CreateTranslation(-3.225, 0, 15);
-
-	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureGoalPost.Get(), 25);
-	m_GoalPost_1.Render(context);
-
-	m_world = SimpleMath::Matrix::Identity;
-	m_world *= SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(180));
-	m_world *= SimpleMath::Matrix::CreateTranslation(4, 0, -15);
-
-	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureGoalPost.Get(), 25);
-	m_GoalPost_2.Render(context);
-
-	m_world = SimpleMath::Matrix::Identity;
-	m_world *= m_football_rotation.z != 0 ? SimpleMath::Matrix::CreateRotationX(m_football_rotation.z * XMConvertToDegrees(m_timer.GetFrameCount() / 20)) : SimpleMath::Matrix::Identity;
-	m_world *= m_football_rotation.x != 0 ? SimpleMath::Matrix::CreateRotationZ(m_football_rotation.x * XMConvertToDegrees(m_timer.GetFrameCount() / 10)) : SimpleMath::Matrix::Identity;
-	m_football_translate = SimpleMath::Matrix::CreateTranslation(m_football_position);
-	m_world *= m_football_translate;
-	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureFootball.Get(), 3.5);
-	m_Football.Render(context);
-	
-	m_world = SimpleMath::Matrix::Identity;
-	m_world *= SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(90));
-	m_world *= SimpleMath::Matrix::CreateTranslation(10, 1.1, -5);
-	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texturePitchLine.Get());
-	m_BenchCover_1.Render(context);
-	m_BenchSeats_1.Render(context);
-	
-	m_world = SimpleMath::Matrix::Identity;
-	m_world *= SimpleMath::Matrix::CreateTranslation(10, 1.1, -5);
-	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texturePitchLine.Get()); 
-
-	m_world = SimpleMath::Matrix::Identity;
-	m_world *= SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(-90));
-	m_world *= SimpleMath::Matrix::CreateTranslation(-10, 1.1, 5);
-	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texturePitchLine.Get());
-	m_BenchCover_2.Render(context);
-	m_BenchSeats_2.Render(context);
-
-	m_PitchBoxesShader.EnableShader(context);
-	m_world = SimpleMath::Matrix::Identity;
-	m_world *= SimpleMath::Matrix::CreateTranslation(0, 0.21, 0);
-	m_PitchBoxesShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texturePitchLine.Get());
-	m_Pitch.Render(context);
 
 	// Ball logic
 	if (m_football_offset.x > 0) {
 		m_football_offset.x -= m_football_drag;
-		m_football_position.x += m_football_drag;
+		m_football_position.x += m_football_drag * 10;
 		m_football_rotation.x = 1;
 	}
 
 	if (m_football_offset.z > 0) {
 		m_football_offset.z -= m_football_drag;
-		m_football_position.z += m_football_drag;
+		m_football_position.z += m_football_drag * 10;
 		m_football_rotation.z = 1;
 	}
 
 	if (m_football_offset.x < 0) {
 		m_football_offset.x += m_football_drag;
-		m_football_position.x -= m_football_drag;
+		m_football_position.x -= m_football_drag * 10;
 		m_football_rotation.x = -1;
 	}
 
 	if (m_football_offset.z < 0) {
 		m_football_offset.z += m_football_drag;
-		m_football_position.z -= m_football_drag;
+		m_football_position.z -= m_football_drag * 10;
 		m_football_rotation.z = -1;
 	}
 
-	if ((m_football_offset.x <= 0.001 && m_football_offset.x >= -0.001) || (m_football_offset.z <= 0.001 && m_football_offset.z >= -0.001)) {
+	if ((m_football_offset.x <= m_football_drag && m_football_offset.x >= -m_football_drag) || (m_football_offset.z <= m_football_drag && m_football_offset.z >= -m_football_drag)) {
+		m_football_offset.x = 0;
+		m_football_offset.z = 0;
+		m_football_rotation.x = 0;
+		m_football_rotation.z = 0;
+	}
+
+	if (m_football_position.x >= 8.1) {
+		m_football_position.x = 8;
+		m_football_offset.x = 0;
+		m_football_offset.z = 0;
+		m_football_rotation.x = 0;
+		m_football_rotation.z = 0;
+	}
+
+	if (m_football_position.x <= -8.1) {
+		m_football_position.x = -8;
 		m_football_offset.x = 0;
 		m_football_offset.z = 0;
 		m_football_rotation.x = 0;
@@ -319,6 +275,146 @@ void Game::Render() {
 			std::wstring(L" Opponent");
 	}
 
+}
+#pragma endregion
+
+#pragma region Frame Render
+void Game::Render() {
+	if (m_timer.GetFrameCount() == 0) {
+		return;
+	}
+
+	Clear();
+
+	m_deviceResources->PIXBeginEvent(L"Render");
+	auto context = m_deviceResources->GetD3DDeviceContext();
+
+	context->OMSetBlendState(m_states->AlphaBlend(), nullptr, 0xFFFFFFFF);
+	context->OMSetDepthStencilState(m_states->DepthDefault(), 0);
+	context->RSSetState(m_states->CullNone());
+
+	m_BasicShader.EnableShader(context);
+	
+	m_world = SimpleMath::Matrix::Identity;
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureGrass.Get(), 150);
+	m_GroundModel.Render(context);
+
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateTranslation(-3.225, 0, 15);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureGoalPost.Get(), 25);
+	m_GoalPost_1.Render(context);
+
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(180));
+	m_world *= SimpleMath::Matrix::CreateTranslation(4, 0, -15);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureGoalPost.Get(), 25);
+	m_GoalPost_2.Render(context);
+
+	m_world = SimpleMath::Matrix::Identity;
+	if (m_football_rotation.z != 0 || m_football_rotation.z != 0) {
+		DirectX::SimpleMath::Quaternion rotation = DirectX::SimpleMath::Quaternion::CreateFromAxisAngle(DirectX::SimpleMath::Vector3(m_football_rotation.z, 0, m_football_rotation.x), XMConvertToDegrees(m_timer.GetFrameCount() / 20.0f));
+		DirectX::SimpleMath::Matrix rotationMatrix = DirectX::SimpleMath::Matrix::CreateFromQuaternion(rotation);
+		m_world *= rotationMatrix;
+	}
+	m_football_translate = SimpleMath::Matrix::CreateTranslation(m_football_position);
+	m_world *= m_football_translate;
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureFootball.Get(), 3.5);
+	m_Football.Render(context);
+	
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(90));
+	m_world *= SimpleMath::Matrix::CreateTranslation(10, 1.1, -5);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texturePitchLine.Get());
+	m_BenchCover_1.Render(context);
+	m_world *= SimpleMath::Matrix::CreateTranslation(-0.05, 0, 0);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureBench.Get());
+	m_BenchSeats_1.Render(context);
+	
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateTranslation(10, 1.1, -5);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texturePitchLine.Get()); 
+
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(-90));
+	m_world *= SimpleMath::Matrix::CreateTranslation(-10, 1.1, 5);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texturePitchLine.Get());
+	m_BenchCover_2.Render(context);
+	m_world *= SimpleMath::Matrix::CreateTranslation(0.05, 0, 0);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureBench.Get());
+	m_BenchSeats_2.Render(context);
+
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateScale(0.04);
+	m_world *= SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(90));
+	m_world *= SimpleMath::Matrix::CreateTranslation(-10, 0, -7);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureMetalBench.Get());
+	m_MetalBench_1.Render(context);
+
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateScale(0.04);
+	m_world *= SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(-90));
+	m_world *= SimpleMath::Matrix::CreateTranslation(10, 0, 7);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureMetalBench.Get());
+	m_MetalBench_2.Render(context);
+
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateScale(0.35);
+	m_world *= SimpleMath::Matrix::CreateRotationX(XMConvertToRadians(90));
+	
+	if (m_rotateMan) {
+		DirectX::SimpleMath::Quaternion interpolatedRotation = DirectX::SimpleMath::Quaternion::Slerp(m_manStartRotation, m_manEndRotation, m_rotateStartFrame / m_rotateEndFrame);
+		m_world *= DirectX::SimpleMath::Matrix::CreateFromQuaternion(interpolatedRotation);
+		m_rotateStartFrame++;
+	}
+
+	if (m_timer.GetFrameCount() == 1) {
+		m_rotateMan = true;
+		m_rotateStartFrame = 0; m_rotateEndFrame = 90;
+	}
+
+	m_world *= SimpleMath::Matrix::CreateTranslation(-8.5, 0.55, -0.5);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texturePitchLine.Get());
+	m_Man_1.Render(context);
+
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateScale(0.35);
+	m_world *= SimpleMath::Matrix::CreateRotationX(XMConvertToRadians(90));
+	m_world *= SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(m_timer.GetFrameCount() * 1.15));
+	m_world *= SimpleMath::Matrix::CreateTranslation(-8.5, 0.55, 0.5);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureFlag.Get());
+	m_Man_2.Render(context);
+
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateScale(0.15);
+	m_world *= SimpleMath::Matrix::CreateTranslation(8, 0.8, -15);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureFlag.Get());
+	m_Flag_1.Render(context);
+
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateScale(0.15);
+	m_world *= SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(180));
+	m_world *= SimpleMath::Matrix::CreateTranslation(-7.96, 0.8, -15);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureFlag.Get());
+	m_Flag_2.Render(context);
+
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateScale(0.15);
+	m_world *= SimpleMath::Matrix::CreateTranslation(8, 0.8, 15);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureFlag.Get());
+	m_Flag_3.Render(context);
+
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateScale(0.15);
+	m_world *= SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(180));
+	m_world *= SimpleMath::Matrix::CreateTranslation(-7.96, 0.8, 15);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureFlag.Get());
+	m_Flag_4.Render(context);
+
+	m_PitchBoxesShader.EnableShader(context);
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateTranslation(0, 0.21, 0);
+	m_PitchBoxesShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texturePitchLine.Get());
+	m_Pitch.Render(context);
 
 	m_deviceResources->PIXBeginEvent(L"Draw sprite");
 	m_sprites->Begin();
@@ -399,32 +495,39 @@ void Game::CreateDeviceDependentResources() {
 	m_GroundModel.InitializeBox(device, 50.0f, 0.5f, 50.0f);
 
 	m_Pitch.InitializeBox(device, 16.0f, 0.1f, 30.0f);
-	m_PitchLeft.InitializeBox(device, 0.1f, 0.1f, 30.0f);
-	m_PitchRight.InitializeBox(device, 0.1f, 0.1f, 30.0f);
-	m_PitchTop.InitializeBox(device, 0.1f, 0.1f, 16.0f);
-	m_PitchBottom.InitializeBox(device, 0.1f, 0.1f, 16.0f);
-	m_PitchMiddle.InitializeBox(device, 0.1f, 0.1f, 16.0f);
-
-	m_PitchMiddleCircle.InitializeBox(device, 5.0f, 0.1f, 5.0f);
 
 	m_Football.InitializeSphere(device, 0.075);
 
 	m_GoalPost_1.InitializeModel(device, "Models/football_goalpost.obj");
 	m_GoalPost_2.InitializeModel(device, "Models/football_goalpost.obj");
+	
 	m_BenchCover_1.InitializeModel(device, "Models/bench_cover.obj");
 	m_BenchCover_2.InitializeModel(device, "Models/bench_cover.obj");
+	
 	m_BenchSeats_1.InitializeModel(device, "Models/bench_seats.obj");
 	m_BenchSeats_2.InitializeModel(device, "Models/bench_seats.obj");
+	
+	m_MetalBench_1.InitializeModel(device, "Models/metal_bench.obj");
+	m_MetalBench_2.InitializeModel(device, "Models/metal_bench.obj");
+	
+	m_Man_1.InitializeModel(device, "Models/man.obj");
+	m_Man_2.InitializeModel(device, "Models/man.obj");	
+	
+	m_Flag_1.InitializeModel(device, "Models/flag.obj");
+	m_Flag_2.InitializeModel(device, "Models/flag.obj");
+	m_Flag_3.InitializeModel(device, "Models/flag.obj");
+	m_Flag_4.InitializeModel(device, "Models/flag.obj");
 
 	m_BasicShader.InitStandard(device, L"basic_vs.cso", L"basic_ps.cso");
 	m_PitchBoxesShader.InitStandard(device, L"pitch_boxes_vs.cso", L"pitch_boxes_ps.cso");
-	m_PitchCirclesShader.InitStandard(device, L"pitch_circle_vs.cso", L"pitch_circle_ps.cso");
 
 	CreateDDSTextureFromFile(device, L"Textures/grass_pitch.dds", nullptr, m_textureGrass.ReleaseAndGetAddressOf());
 	CreateDDSTextureFromFile(device, L"Textures/goal_post.dds", nullptr, m_textureGoalPost.ReleaseAndGetAddressOf());
 	CreateDDSTextureFromFile(device, L"Textures/white_line.dds", nullptr, m_texturePitchLine.ReleaseAndGetAddressOf());
 	CreateDDSTextureFromFile(device, L"Textures/football.dds", nullptr, m_textureFootball.ReleaseAndGetAddressOf());
-
+	CreateDDSTextureFromFile(device, L"Textures/bench.dds", nullptr, m_textureBench.ReleaseAndGetAddressOf());
+	CreateDDSTextureFromFile(device, L"Textures/metal_bench.dds", nullptr, m_textureMetalBench.ReleaseAndGetAddressOf());
+	CreateDDSTextureFromFile(device, L"Textures/leather_red.dds", nullptr, m_textureFlag.ReleaseAndGetAddressOf());
 	m_world = Matrix::Identity;
 }
 

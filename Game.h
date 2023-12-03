@@ -54,11 +54,28 @@ private:
 	int																		m_playerScore;
 	int																		m_oppScore;
 
+	float																	m_rotateStartFrame;
+	float																	m_rotateEndFrame;
+	float																	m_football_drag;
+	float																	m_football_travel_time;
+
+	bool																	m_retryAudio;
+	bool																	m_playerMoving;
+	bool																	m_checkBallMoveFlag;
+	bool																	m_rotateMan;
+
+	std::string																playerScoreString;
+	std::string																oppScoreString;
+	std::wstring															scoreText;
+
+	XMFLOAT2																m_scoreLocation;
+
 	std::unique_ptr<DX::DeviceResources>									m_deviceResources;
 
 	DX::StepTimer															m_timer;
 
 	Input																	m_input;
+
 	InputCommands															m_gameInputCommands;
 
 	std::unique_ptr<DirectX::CommonStates>                                  m_states;
@@ -68,6 +85,7 @@ private:
 	std::unique_ptr<DirectX::SpriteFont>                                    m_font;
 
 	std::unique_ptr<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>>  m_batch;
+
 	Microsoft::WRL::ComPtr<ID3D11InputLayout>                               m_batchInputLayout;
 
 	Light																	m_Light;
@@ -78,41 +96,43 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_textureGoalPost;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_texturePitchLine;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_textureFootball;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_textureBench;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_textureMetalBench;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_textureFlag;
 
 	Shader																	m_BasicShader;
 	Shader																	m_PitchBoxesShader;
-	Shader																	m_PitchCirclesShader;
 
 	ModelClass																m_GroundModel;
-
-	ModelClass																m_PitchLeft;
 	ModelClass																m_Pitch;
-	ModelClass																m_PitchRight;
-	ModelClass																m_PitchTop;
-	ModelClass																m_PitchBottom;
-	ModelClass																m_PitchMiddle;
-	ModelClass																m_PitchMiddleCircle;
-
 	ModelClass																m_Football;
-
 	ModelClass																m_GoalPost_1;
 	ModelClass																m_GoalPost_2;
 	ModelClass																m_BenchCover_1;
 	ModelClass																m_BenchCover_2;
 	ModelClass																m_BenchSeats_1;
 	ModelClass																m_BenchSeats_2;
+	ModelClass																m_MetalBench_1;
+	ModelClass																m_MetalBench_2;
+	ModelClass																m_Man_1;
+	ModelClass																m_Man_2;
+	ModelClass																m_Floodlight_1;
+	ModelClass																m_Floodlight_2;
+	ModelClass																m_Floodlight_3;
+	ModelClass																m_Floodlight_4;
+	ModelClass																m_Flag_1;
+	ModelClass																m_Flag_2;
+	ModelClass																m_Flag_3;
+	ModelClass																m_Flag_4;
 
 	DirectX::SimpleMath::Matrix                                             m_world;
 	DirectX::SimpleMath::Matrix                                             m_view;
 	DirectX::SimpleMath::Matrix                                             m_projection;
-
 	DirectX::SimpleMath::Matrix												m_football_translate;
+
 	DirectX::SimpleMath::Vector3											m_football_position;
 	DirectX::SimpleMath::Vector3											m_football_rotation;
 	DirectX::SimpleMath::Vector3                                            m_football_offset;
-	float																	m_football_drag;
-	float																	m_football_travel_time;
-	double																	m_football_hit_time;
 
 	std::unique_ptr<DirectX::AudioEngine>                                   m_audEngine;
 	std::unique_ptr<DirectX::SoundEffect>                                   m_audio_walk;
@@ -121,13 +141,8 @@ private:
 	std::unique_ptr<DirectX::SoundEffect>                                   m_audio_crowd_boo;
 	std::unique_ptr<DirectX::SoundEffect>									m_audio_crowd_ambience;
 	std::unique_ptr<DirectX::SoundEffectInstance>							m_audio_ambience_loop;
-	bool																	m_retryAudio;
-	bool																	m_playerMoving;
-	bool																	m_checkBallMoveFlag;
 
-	XMFLOAT2																m_scoreLocation;
+	DirectX::SimpleMath::Quaternion											m_manStartRotation;
+	DirectX::SimpleMath::Quaternion											m_manEndRotation;
 
-	std::string																playerScoreString;
-	std::string																oppScoreString;
-	std::wstring															scoreText;
 };
