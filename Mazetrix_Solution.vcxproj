@@ -212,23 +212,22 @@
     <Image Include="directx.ico" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="grass_ps.hlsl">
+    <FxCompile Include="basic_ps.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename).cso</ObjectFileOutput>
     </FxCompile>
-    <FxCompile Include="grass_vs.hlsl">
+    <FxCompile Include="basic_vs.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
     </FxCompile>
-    <FxCompile Include="ground_ps.hlsl">
+    <FxCompile Include="pitch_boxes_ps.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
     </FxCompile>
-    <FxCompile Include="ground_vs.hlsl">
+    <FxCompile Include="pitch_boxes_vs.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
     </FxCompile>
-    <FxCompile Include="light_ps.hlsl">
+    <FxCompile Include="pitch_circle_ps.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
     </FxCompile>
-    <FxCompile Include="light_vs.hlsl">
+    <FxCompile Include="pitch_circle_vs.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
     </FxCompile>
     <FxCompile Include="skybox_ps.hlsl">

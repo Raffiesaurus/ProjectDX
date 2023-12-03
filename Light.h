@@ -34,7 +34,7 @@ public:
 	void setSpecularColour(float red, float green, float blue, float alpha);	///< set specular colour RGBA
 	void setSpecularPower(float power);											///< Set specular power
 	void setPosition(float x, float y, float z);								///< Set light position (for point lights)
-	void setLookAt(float x, float y, float z);									///< Set light lookAt (near deprecation)
+	void setLookAt(DirectX::SimpleMath::Vector3 vec);									///< Set light lookAt (near deprecation)
 
 	// Getters
 	DirectX::SimpleMath::Vector4 getAmbientColour();		///< Get ambient colour, returns float4

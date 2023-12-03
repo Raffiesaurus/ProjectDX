@@ -71,7 +71,6 @@ DirectX::SimpleMath::Vector4 Light::getSpecularColour()
 	return m_specularColour;
 }
 
-
 float Light::getSpecularPower()
 {
 	return m_specularPower;
@@ -82,8 +81,8 @@ DirectX::SimpleMath::Vector3 Light::getPosition()
 	return m_position;
 }
 
-void Light::setLookAt(float x, float y, float z)
+void Light::setLookAt(DirectX::SimpleMath::Vector3 vec)
 {
-	m_lookAt = DirectX::SimpleMath::Vector4(x, y, z, 1.0f);
+	m_lookAt = DirectX::SimpleMath::Vector4(vec.x, vec.y, vec.z, 1.0f);
 }
 

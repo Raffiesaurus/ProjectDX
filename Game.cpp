@@ -14,8 +14,10 @@ using Microsoft::WRL::ComPtr;
 
 Game::Game() noexcept(false) {
 	m_deviceResources = std::make_unique<DX::DeviceResources>();
-	playerMoving = false;
+	m_playerMoving = false;
 	m_deviceResources->RegisterDeviceNotify(this);
+	m_playerScore = 0;
+	m_oppScore = 0;
 }
 
 Game::~Game() {
@@ -23,7 +25,7 @@ Game::~Game() {
 		m_audEngine->Suspend();
 	}
 
-	m_bgmLoop.reset();
+	m_audio_ambience_loop.reset();
 }
 
 void Game::Initialize(HWND window, int width, int height) {
@@ -31,6 +33,9 @@ void Game::Initialize(HWND window, int width, int height) {
 	m_input.Initialise(window);
 
 	m_deviceResources->SetWindow(window, width, height);
+
+	m_scoreLocation.x = width - (width / 1.5);
+	m_scoreLocation.y = 10;
 
 	m_deviceResources->CreateDeviceResources();
 	CreateDeviceDependentResources();
@@ -40,19 +45,36 @@ void Game::Initialize(HWND window, int width, int height) {
 
 	m_Light.setAmbientColour(0.3f, 0.3f, 0.3f, 1.0f);
 	m_Light.setDiffuseColour(1.0f, 1.0f, 1.0f, 1.0f);
-	m_Light.setPosition(2.0f, 1.0f, 1.0f);
-	m_Light.setDirection(-1.0f, -1.0f, 0.0f);
+	m_Light.setPosition(0.0f, 8.0f, 10.0f);
+	m_Light.setDirection(0.0f, 1.0f, 1.0f);
 
-	m_Camera01.setPosition(Vector3(0.0f, 1.0f, 4.0f));
+	m_Camera01.setPosition(Vector3(0.0f, 1.0f, 2.0f));
 	m_Camera01.setRotation(Vector3(0.0f, -180.0f, 0.0f));
+
+	m_football_position = XMFLOAT3(0, 0.32, 0);
+	m_football_drag = 0.01;
+
+	m_checkBallMoveFlag = false;
 
 	AUDIO_ENGINE_FLAGS eflags = AudioEngine_Default;
 	m_audEngine = std::make_unique<AudioEngine>(eflags);
-	m_walk = std::make_unique<DirectX::SoundEffect>(m_audEngine.get(), L"Audio/walk.wav");
-	m_bgm = std::make_unique<DirectX::SoundEffect>(m_audEngine.get(), L"Audio/bgm.wav");
-	m_bgmLoop = m_bgm->CreateInstance();
-	m_bgmLoop->Play(true);
-	m_bgmLoop->SetVolume(0.1);
+	m_audio_walk = std::make_unique<DirectX::SoundEffect>(m_audEngine.get(), L"Audio/walk.wav");
+	m_audio_ball_hit = std::make_unique<DirectX::SoundEffect>(m_audEngine.get(), L"Audio/ball-kick.wav");
+	m_audio_crowd_cheer = std::make_unique<DirectX::SoundEffect>(m_audEngine.get(), L"Audio/crowd-cheer.wav");
+	m_audio_crowd_boo = std::make_unique<DirectX::SoundEffect>(m_audEngine.get(), L"Audio/crowd-boo.wav");
+	m_audio_crowd_ambience = std::make_unique<DirectX::SoundEffect>(m_audEngine.get(), L"Audio/walk.wav");
+	m_audio_crowd_ambience = std::make_unique<DirectX::SoundEffect>(m_audEngine.get(), L"Audio/crowd-ambience.wav");
+	m_audio_ambience_loop = m_audio_crowd_ambience->CreateInstance();
+	m_audio_ambience_loop->Play(true);
+	m_audio_ambience_loop->SetVolume(0.1);
+
+	playerScoreString = std::to_string(m_playerScore);
+	oppScoreString = std::to_string(m_oppScore);
+	scoreText = std::wstring(L"Player ") +
+		std::wstring(playerScoreString.begin(), playerScoreString.end()) +
+		std::wstring(L" - ") +
+		std::wstring(oppScoreString.begin(), oppScoreString.end()) +
+		std::wstring(L" Opponent");
 }
 
 #pragma region Frame Update
@@ -116,32 +138,49 @@ void Game::Update(DX::StepTimer const& timer) {
 	}
 
 	if (m_gameInputCommands.forward || m_gameInputCommands.back || m_gameInputCommands.left || m_gameInputCommands.right) {
-		if (!m_walk->IsInUse()) {
+		if (!m_audio_walk->IsInUse()) {
 			float pitch = 0.1;
 			if (m_gameInputCommands.sprint > 1) {
 				pitch = 0.5;
 			}
-			m_walk->Play(0.5, pitch, 0);
+			m_audio_walk->Play(0.5, pitch, 0);
 		}
 	}
 
 	m_Camera01.Update();
 
 	m_view = m_Camera01.getCameraMatrix();
+	m_Light.setLookAt(m_Camera01.getPosition());
 	m_world = Matrix::Identity;
 
 	if (m_retryAudio) {
 		m_retryAudio = false;
 
 		if (m_audEngine->Reset()) {
-			if (m_bgmLoop)
-				m_bgmLoop->Play(true);
+			if (m_audio_ambience_loop)
+				m_audio_ambience_loop->Play(true);
 		}
 	}
 
 	if (m_input.Quit()) {
 		ExitGame();
 	}
+
+	DirectX::SimpleMath::Vector3 curPosition = m_Camera01.getPosition();
+	float dx = abs(curPosition.x - m_football_position.x);
+	float dz = abs(curPosition.z - m_football_position.z);
+
+	if (dx + dz < 0.25) {
+		// Ball is in range
+		DirectX::SimpleMath::Vector3 direction = DirectX::SimpleMath::Vector3(m_football_position.x - curPosition.x, 0, m_football_position.z - curPosition.z);
+		direction.Normalize();
+		direction *= 2;
+		m_football_offset = direction;
+		if (!m_audio_ball_hit->IsInUse()) {
+			m_audio_ball_hit->Play(0.1, 0.8, 0);
+		}
+	}
+
 }
 #pragma endregion
 
@@ -156,15 +195,136 @@ void Game::Render() {
 	m_deviceResources->PIXBeginEvent(L"Render");
 	auto context = m_deviceResources->GetD3DDeviceContext();
 
-
-	context->OMSetBlendState(m_states->Opaque(), nullptr, 0xFFFFFFFF);
+	context->OMSetBlendState(m_states->AlphaBlend(), nullptr, 0xFFFFFFFF);
 	context->OMSetDepthStencilState(m_states->DepthDefault(), 0);
-	context->RSSetState(m_states->CullClockwise());
+	context->RSSetState(m_states->CullNone());
 
-	m_GroundShader.EnableShader(context);
-	m_GroundShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureGrass.Get());
+	m_BasicShader.EnableShader(context);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureGrass.Get(), 150);
 	m_GroundModel.Render(context);
 
+	m_world *= SimpleMath::Matrix::CreateTranslation(-3.225, 0, 15);
+
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureGoalPost.Get(), 25);
+	m_GoalPost_1.Render(context);
+
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(180));
+	m_world *= SimpleMath::Matrix::CreateTranslation(4, 0, -15);
+
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureGoalPost.Get(), 25);
+	m_GoalPost_2.Render(context);
+
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= m_football_rotation.z != 0 ? SimpleMath::Matrix::CreateRotationX(m_football_rotation.z * XMConvertToDegrees(m_timer.GetFrameCount() / 20)) : SimpleMath::Matrix::Identity;
+	m_world *= m_football_rotation.x != 0 ? SimpleMath::Matrix::CreateRotationZ(m_football_rotation.x * XMConvertToDegrees(m_timer.GetFrameCount() / 10)) : SimpleMath::Matrix::Identity;
+	m_football_translate = SimpleMath::Matrix::CreateTranslation(m_football_position);
+	m_world *= m_football_translate;
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureFootball.Get(), 3.5);
+	m_Football.Render(context);
+	
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(90));
+	m_world *= SimpleMath::Matrix::CreateTranslation(10, 1.1, -5);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texturePitchLine.Get());
+	m_BenchCover_1.Render(context);
+	m_BenchSeats_1.Render(context);
+	
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateTranslation(10, 1.1, -5);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texturePitchLine.Get()); 
+
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(-90));
+	m_world *= SimpleMath::Matrix::CreateTranslation(-10, 1.1, 5);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texturePitchLine.Get());
+	m_BenchCover_2.Render(context);
+	m_BenchSeats_2.Render(context);
+
+	m_PitchBoxesShader.EnableShader(context);
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateTranslation(0, 0.21, 0);
+	m_PitchBoxesShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texturePitchLine.Get());
+	m_Pitch.Render(context);
+
+	// Ball logic
+	if (m_football_offset.x > 0) {
+		m_football_offset.x -= m_football_drag;
+		m_football_position.x += m_football_drag;
+		m_football_rotation.x = 1;
+	}
+
+	if (m_football_offset.z > 0) {
+		m_football_offset.z -= m_football_drag;
+		m_football_position.z += m_football_drag;
+		m_football_rotation.z = 1;
+	}
+
+	if (m_football_offset.x < 0) {
+		m_football_offset.x += m_football_drag;
+		m_football_position.x -= m_football_drag;
+		m_football_rotation.x = -1;
+	}
+
+	if (m_football_offset.z < 0) {
+		m_football_offset.z += m_football_drag;
+		m_football_position.z -= m_football_drag;
+		m_football_rotation.z = -1;
+	}
+
+	if ((m_football_offset.x <= 0.001 && m_football_offset.x >= -0.001) || (m_football_offset.z <= 0.001 && m_football_offset.z >= -0.001)) {
+		m_football_offset.x = 0;
+		m_football_offset.z = 0;
+		m_football_rotation.x = 0;
+		m_football_rotation.z = 0;
+	}
+
+	if (m_football_position.z > 15.1) {
+		// Own Goal
+		m_football_position.x = m_football_position.z = 0;
+		m_football_offset.x = 0;
+		m_football_offset.z = 0;
+		m_football_rotation.x = 0;
+		m_football_rotation.z = 0;
+		if (!m_audio_crowd_boo->IsInUse()) {
+			m_audio_crowd_boo->Play(0.5, 0, 0);
+		}
+		m_oppScore += 1;
+		playerScoreString = std::to_string(m_playerScore);
+		oppScoreString = std::to_string(m_oppScore);
+		scoreText = std::wstring(L"Player ") +
+			std::wstring(playerScoreString.begin(), playerScoreString.end()) +
+			std::wstring(L" - ") +
+			std::wstring(oppScoreString.begin(), oppScoreString.end()) +
+			std::wstring(L" Opponent");
+	}
+
+	if (m_football_position.z < -15.1) {
+		// Goal!!!
+		m_football_position.x = m_football_position.z = 0;
+		m_football_offset.x = 0;
+		m_football_offset.z = 0;
+		m_football_rotation.x = 0;
+		m_football_rotation.z = 0;
+		if (!m_audio_crowd_cheer->IsInUse()) {
+			m_audio_crowd_cheer->Play(0.5, 0, 0);
+		}
+		m_playerScore += 1;
+		playerScoreString = std::to_string(m_playerScore);
+		oppScoreString = std::to_string(m_oppScore);
+		scoreText = std::wstring(L"Player ") +
+			std::wstring(playerScoreString.begin(), playerScoreString.end()) +
+			std::wstring(L" - ") +
+			std::wstring(oppScoreString.begin(), oppScoreString.end()) +
+			std::wstring(L" Opponent");
+	}
+
+
+	m_deviceResources->PIXBeginEvent(L"Draw sprite");
+	m_sprites->Begin();
+	m_font->DrawString(m_sprites.get(), scoreText.c_str(), m_scoreLocation, Colors::Black);
+	m_sprites->End();
+	m_deviceResources->PIXEndEvent();
 	m_deviceResources->Present();
 }
 
@@ -214,7 +374,8 @@ void Game::OnWindowMoved() {
 void Game::OnWindowSizeChanged(int width, int height) {
 	if (!m_deviceResources->WindowSizeChanged(width, height))
 		return;
-
+	m_scoreLocation.x = width - (width / 1.5);
+	m_scoreLocation.y = 10;
 	CreateWindowSizeDependentResources();
 }
 
@@ -235,21 +396,35 @@ void Game::CreateDeviceDependentResources() {
 	m_font = std::make_unique<SpriteFont>(device, L"SegoeUI_18.spritefont");
 	m_batch = std::make_unique<PrimitiveBatch<VertexPositionColor>>(context);
 
-	m_GroundModel.InitializeBox(device, 100.0f, 0.5f, 100.0f);
+	m_GroundModel.InitializeBox(device, 50.0f, 0.5f, 50.0f);
 
-	m_GrassModel.InitializeModel(device, "Models/tall_grass.obj");
-	m_SkyboxModel.InitializeBox(device, 1, 1, 1);
+	m_Pitch.InitializeBox(device, 16.0f, 0.1f, 30.0f);
+	m_PitchLeft.InitializeBox(device, 0.1f, 0.1f, 30.0f);
+	m_PitchRight.InitializeBox(device, 0.1f, 0.1f, 30.0f);
+	m_PitchTop.InitializeBox(device, 0.1f, 0.1f, 16.0f);
+	m_PitchBottom.InitializeBox(device, 0.1f, 0.1f, 16.0f);
+	m_PitchMiddle.InitializeBox(device, 0.1f, 0.1f, 16.0f);
 
-	m_ParkModel.InitializeModel(device, "Models/OBJ.obj");
-	m_LightShader.InitStandard(device, L"light_vs.cso", L"light_ps.cso");
-	m_SkyBoxShader.InitStandard(device, L"skybox_vs.cso", L"skybox_ps.cso");
-	m_GrassShader.InitStandard(device, L"grass_vs.cso", L"grass_ps.cso");
-	m_GroundShader.InitStandard(device, L"ground_vs.cso", L"ground_ps.cso");
+	m_PitchMiddleCircle.InitializeBox(device, 5.0f, 0.1f, 5.0f);
 
-	CreateDDSTextureFromFile(device, L"Textures/cubemap.dds", nullptr, m_cubemap.ReleaseAndGetAddressOf());
-	CreateDDSTextureFromFile(device, L"Textures/grass.dds", nullptr, m_textureGrass.ReleaseAndGetAddressOf());
-	CreateDDSTextureFromFile(device, L"Textures/skybox.dds", nullptr, m_textureSkyBox.ReleaseAndGetAddressOf());
-	CreateDDSTextureFromFile(device, L"Textures/ground.dds", nullptr, m_textureGround.ReleaseAndGetAddressOf());
+	m_Football.InitializeSphere(device, 0.075);
+
+	m_GoalPost_1.InitializeModel(device, "Models/football_goalpost.obj");
+	m_GoalPost_2.InitializeModel(device, "Models/football_goalpost.obj");
+	m_BenchCover_1.InitializeModel(device, "Models/bench_cover.obj");
+	m_BenchCover_2.InitializeModel(device, "Models/bench_cover.obj");
+	m_BenchSeats_1.InitializeModel(device, "Models/bench_seats.obj");
+	m_BenchSeats_2.InitializeModel(device, "Models/bench_seats.obj");
+
+	m_BasicShader.InitStandard(device, L"basic_vs.cso", L"basic_ps.cso");
+	m_PitchBoxesShader.InitStandard(device, L"pitch_boxes_vs.cso", L"pitch_boxes_ps.cso");
+	m_PitchCirclesShader.InitStandard(device, L"pitch_circle_vs.cso", L"pitch_circle_ps.cso");
+
+	CreateDDSTextureFromFile(device, L"Textures/grass_pitch.dds", nullptr, m_textureGrass.ReleaseAndGetAddressOf());
+	CreateDDSTextureFromFile(device, L"Textures/goal_post.dds", nullptr, m_textureGoalPost.ReleaseAndGetAddressOf());
+	CreateDDSTextureFromFile(device, L"Textures/white_line.dds", nullptr, m_texturePitchLine.ReleaseAndGetAddressOf());
+	CreateDDSTextureFromFile(device, L"Textures/football.dds", nullptr, m_textureFootball.ReleaseAndGetAddressOf());
+
 	m_world = Matrix::Identity;
 }
 
@@ -277,7 +452,10 @@ void Game::OnDeviceLost() {
 	m_sprites.reset();
 	m_font.reset();
 	m_batch.reset();
-	m_testmodel.reset();
+	m_audEngine.reset();
+	m_audio_crowd_ambience.reset();
+	m_audio_ambience_loop.reset();
+	m_textureGrass.Reset();
 	m_batchInputLayout.Reset();
 }
 

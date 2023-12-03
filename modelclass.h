@@ -35,7 +35,7 @@ public:
 
 	bool InitializeModel(ID3D11Device *device, char* filename);
 	bool InitializeTeapot(ID3D11Device*);
-	bool InitializeSphere(ID3D11Device*);
+	bool InitializeSphere(ID3D11Device*, float radius);
 	bool InitializeBox(ID3D11Device*, float xwidth, float yheight, float zdepth);
 	void Shutdown();
 	void Render(ID3D11DeviceContext*);

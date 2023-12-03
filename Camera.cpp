@@ -41,9 +41,9 @@ Camera::Camera() {
 Camera::~Camera() {}
 
 void Camera::Update() {
-	//rotation in yaw - using the paramateric equation of a circle
-	if (m_position.y <= 1) {
-		m_position.y = 1;
+	
+	if (m_position.y != 0.75) {
+		m_position.y = 0.75;
 	}
 	float radianX = (m_orientation.x) * 3.1415f / 180.0f;
 	float radianY = (m_orientation.y) * 3.1415f / 180.0f;

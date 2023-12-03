@@ -40,9 +40,9 @@ bool ModelClass::InitializeTeapot(ID3D11Device* device)
 	return true;
 }
 
-bool ModelClass::InitializeSphere(ID3D11Device *device)
+bool ModelClass::InitializeSphere(ID3D11Device *device, float radius)
 {
-	GeometricPrimitive::CreateSphere(preFabVertices, preFabIndices, 1, 8, false);
+	GeometricPrimitive::CreateSphere(preFabVertices, preFabIndices, radius*2, 8, false);
 	m_vertexCount = preFabVertices.size();
 	m_indexCount = preFabIndices.size();
 
