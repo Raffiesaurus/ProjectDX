@@ -30,7 +30,7 @@ Game::~Game() {
 		m_audEngine->Suspend();
 	}
 
-	m_audio_ambience_loop.reset();
+	m_audio_ambience_loop_1.reset();
 }
 
 void Game::Initialize(HWND window, int width, int height) {
@@ -50,14 +50,14 @@ void Game::Initialize(HWND window, int width, int height) {
 
 	m_Light.setAmbientColour(0.3f, 0.3f, 0.3f, 1.0f);
 	m_Light.setDiffuseColour(1.0f, 1.0f, 1.0f, 1.0f);
-	m_Light.setPosition(0.0f, 8.0f, 10.0f);
-	m_Light.setDirection(0.0f, 1.0f, 1.0f);
+	m_Light.setPosition(0.0f, 18.0f, -10.0f);
+	m_Light.setDirection(-1.0f, -1.0f, -0.5f);
 
 	m_Camera01.setPosition(Vector3(0.0f, 1.0f, 2.0f));
 	m_Camera01.setRotation(Vector3(0.0f, -180.0f, 0.0f));
 
 	m_football_position = XMFLOAT3(0, 0.32, 0);
-	m_football_drag = 0.001;
+	m_football_drag = 100;
 
 	m_checkBallMoveFlag = false;
 
@@ -69,9 +69,12 @@ void Game::Initialize(HWND window, int width, int height) {
 	m_audio_crowd_boo = std::make_unique<DirectX::SoundEffect>(m_audEngine.get(), L"Audio/crowd-boo.wav");
 	m_audio_crowd_ambience = std::make_unique<DirectX::SoundEffect>(m_audEngine.get(), L"Audio/walk.wav");
 	m_audio_crowd_ambience = std::make_unique<DirectX::SoundEffect>(m_audEngine.get(), L"Audio/crowd-ambience.wav");
-	m_audio_ambience_loop = m_audio_crowd_ambience->CreateInstance();
-	m_audio_ambience_loop->Play(true);
-	m_audio_ambience_loop->SetVolume(0.75);
+
+	m_audio_ambience_loop_1 = m_audio_crowd_ambience->CreateInstance(SoundEffectInstance_Use3D);
+	m_audio_ambience_loop_1->Play(true);
+
+	m_audio_ambience_loop_2 = m_audio_crowd_ambience->CreateInstance(SoundEffectInstance_Use3D);
+	m_audio_ambience_loop_2->Play(true);
 
 	playerScoreString = std::to_string(m_playerScore);
 	oppScoreString = std::to_string(m_oppScore);
@@ -157,15 +160,22 @@ void Game::Update(DX::StepTimer const& timer) {
 	m_view = m_Camera01.getCameraMatrix();
 	m_Light.setLookAt(m_Camera01.getPosition());
 	m_world = Matrix::Identity;
+	
+	m_listener1.Update(m_Camera01.getPosition(), Vector3::Up, static_cast<float>(timer.GetElapsedSeconds()));
+	m_listener2 = m_listener1;
+	
+	m_emitter1.Update(SimpleMath::Vector3(-10, 0, -7), Vector3::Up, static_cast<float>(timer.GetElapsedSeconds()));
+	m_emitter2.Update(SimpleMath::Vector3(10, 0, 7), Vector3::Up, static_cast<float>(timer.GetElapsedSeconds()));
 
-	if (m_retryAudio) {
+	m_audio_ambience_loop_1->Apply3D(m_listener1, m_emitter1);
+	m_audio_ambience_loop_2->Apply3D(m_listener2, m_emitter2);
+	/*if (m_retryAudio) {
 		m_retryAudio = false;
 
 		if (m_audEngine->Reset()) {
-			if (m_audio_ambience_loop)
-				m_audio_ambience_loop->Play(true);
+			if (m_audio_ambience_loop_1)
 		}
-	}
+	}*/
 
 	if (m_input.Quit()) {
 		ExitGame();
@@ -175,11 +185,11 @@ void Game::Update(DX::StepTimer const& timer) {
 	float dx = abs(curPosition.x - m_football_position.x);
 	float dz = abs(curPosition.z - m_football_position.z);
 
-	if (dx + dz < 0.25) {
+	if (dx + dz < 0.4) {
 		// Ball is in range
 		DirectX::SimpleMath::Vector3 direction = DirectX::SimpleMath::Vector3(m_football_position.x - curPosition.x, 0, m_football_position.z - curPosition.z);
 		direction.Normalize();
-		direction *= 2;
+		direction *= m_gameInputCommands.sprint;
 		m_football_offset = direction;
 		if (!m_audio_ball_hit->IsInUse()) {
 			m_audio_ball_hit->Play(0.4, 0.8, 0);
@@ -189,30 +199,30 @@ void Game::Update(DX::StepTimer const& timer) {
 
 	// Ball logic
 	if (m_football_offset.x > 0) {
-		m_football_offset.x -= m_football_drag;
-		m_football_position.x += m_football_drag * 10;
+		m_football_offset.x -= (abs(m_football_offset.x) / m_football_drag);
+		m_football_position.x += (abs(m_football_offset.x) / m_football_drag);
 		m_football_rotation.x = 1;
 	}
 
 	if (m_football_offset.z > 0) {
-		m_football_offset.z -= m_football_drag;
-		m_football_position.z += m_football_drag * 10;
+		m_football_offset.z -= (abs(m_football_offset.z) / m_football_drag);
+		m_football_position.z += (abs(m_football_offset.z) / m_football_drag);
 		m_football_rotation.z = 1;
 	}
 
 	if (m_football_offset.x < 0) {
-		m_football_offset.x += m_football_drag;
-		m_football_position.x -= m_football_drag * 10;
+		m_football_offset.x += (abs(m_football_offset.x) / m_football_drag);
+		m_football_position.x -= (abs(m_football_offset.x) / m_football_drag);
 		m_football_rotation.x = -1;
 	}
 
 	if (m_football_offset.z < 0) {
-		m_football_offset.z += m_football_drag;
-		m_football_position.z -= m_football_drag * 10;
+		m_football_offset.z += (abs(m_football_offset.z) / m_football_drag);
+		m_football_position.z -= (abs(m_football_offset.z) / m_football_drag);
 		m_football_rotation.z = -1;
 	}
 
-	if ((m_football_offset.x <= m_football_drag && m_football_offset.x >= -m_football_drag) || (m_football_offset.z <= m_football_drag && m_football_offset.z >= -m_football_drag)) {
+	if ((m_football_offset.x <= 0.05 && m_football_offset.x >= -0.05) && (m_football_offset.z <= 0.05 && m_football_offset.z >= -0.05)) {
 		m_football_offset.x = 0;
 		m_football_offset.z = 0;
 		m_football_rotation.x = 0;
@@ -290,11 +300,19 @@ void Game::Render() {
 	auto context = m_deviceResources->GetD3DDeviceContext();
 
 	context->OMSetBlendState(m_states->AlphaBlend(), nullptr, 0xFFFFFFFF);
-	context->OMSetDepthStencilState(m_states->DepthDefault(), 0);
+	context->OMSetDepthStencilState(m_states->DepthNone(), 0);
 	context->RSSetState(m_states->CullNone());
 
+	m_SkyboxShader.EnableShader(context);
+	m_world = SimpleMath::Matrix::Identity;
+	m_world *= SimpleMath::Matrix::CreateRotationX(XMConvertToRadians(180));
+	m_world *= SimpleMath::Matrix::CreateTranslation(m_Camera01.getPosition().x, m_Camera01.getPosition().y, m_Camera01.getPosition().z);
+	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureSkybox.Get());
+	m_SkyboxCube.Render(context);
+
+	context->OMSetDepthStencilState(m_states->DepthDefault(), 0);
+
 	m_BasicShader.EnableShader(context);
-	
 	m_world = SimpleMath::Matrix::Identity;
 	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureGrass.Get(), 150);
 	m_GroundModel.Render(context);
@@ -320,7 +338,7 @@ void Game::Render() {
 	m_world *= m_football_translate;
 	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureFootball.Get(), 3.5);
 	m_Football.Render(context);
-	
+
 	m_world = SimpleMath::Matrix::Identity;
 	m_world *= SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(90));
 	m_world *= SimpleMath::Matrix::CreateTranslation(10, 1.1, -5);
@@ -329,10 +347,6 @@ void Game::Render() {
 	m_world *= SimpleMath::Matrix::CreateTranslation(-0.05, 0, 0);
 	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureBench.Get());
 	m_BenchSeats_1.Render(context);
-	
-	m_world = SimpleMath::Matrix::Identity;
-	m_world *= SimpleMath::Matrix::CreateTranslation(10, 1.1, -5);
-	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texturePitchLine.Get()); 
 
 	m_world = SimpleMath::Matrix::Identity;
 	m_world *= SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(-90));
@@ -360,7 +374,7 @@ void Game::Render() {
 	m_world = SimpleMath::Matrix::Identity;
 	m_world *= SimpleMath::Matrix::CreateScale(0.35);
 	m_world *= SimpleMath::Matrix::CreateRotationX(XMConvertToRadians(90));
-	
+
 	if (m_rotateMan) {
 		DirectX::SimpleMath::Quaternion interpolatedRotation = DirectX::SimpleMath::Quaternion::Slerp(m_manStartRotation, m_manEndRotation, m_rotateStartFrame / m_rotateEndFrame);
 		m_world *= DirectX::SimpleMath::Matrix::CreateFromQuaternion(interpolatedRotation);
@@ -410,10 +424,10 @@ void Game::Render() {
 	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureFlag.Get());
 	m_Flag_4.Render(context);
 
-	m_PitchBoxesShader.EnableShader(context);
+	m_PitchShader.EnableShader(context);
 	m_world = SimpleMath::Matrix::Identity;
 	m_world *= SimpleMath::Matrix::CreateTranslation(0, 0.21, 0);
-	m_PitchBoxesShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texturePitchLine.Get());
+	m_PitchShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texturePitchLine.Get());
 	m_Pitch.Render(context);
 
 	m_deviceResources->PIXBeginEvent(L"Draw sprite");
@@ -500,26 +514,29 @@ void Game::CreateDeviceDependentResources() {
 
 	m_GoalPost_1.InitializeModel(device, "Models/football_goalpost.obj");
 	m_GoalPost_2.InitializeModel(device, "Models/football_goalpost.obj");
-	
+
 	m_BenchCover_1.InitializeModel(device, "Models/bench_cover.obj");
 	m_BenchCover_2.InitializeModel(device, "Models/bench_cover.obj");
-	
+
 	m_BenchSeats_1.InitializeModel(device, "Models/bench_seats.obj");
 	m_BenchSeats_2.InitializeModel(device, "Models/bench_seats.obj");
-	
+
 	m_MetalBench_1.InitializeModel(device, "Models/metal_bench.obj");
 	m_MetalBench_2.InitializeModel(device, "Models/metal_bench.obj");
-	
+
 	m_Man_1.InitializeModel(device, "Models/man.obj");
-	m_Man_2.InitializeModel(device, "Models/man.obj");	
-	
+	m_Man_2.InitializeModel(device, "Models/man.obj");
+
 	m_Flag_1.InitializeModel(device, "Models/flag.obj");
 	m_Flag_2.InitializeModel(device, "Models/flag.obj");
 	m_Flag_3.InitializeModel(device, "Models/flag.obj");
 	m_Flag_4.InitializeModel(device, "Models/flag.obj");
 
+	m_SkyboxCube.InitializeModel(device, "Models/skybox_cube.obj");
+
 	m_BasicShader.InitStandard(device, L"basic_vs.cso", L"basic_ps.cso");
-	m_PitchBoxesShader.InitStandard(device, L"pitch_boxes_vs.cso", L"pitch_boxes_ps.cso");
+	m_PitchShader.InitStandard(device, L"pitch_boxes_vs.cso", L"pitch_boxes_ps.cso");
+	m_SkyboxShader.InitStandard(device, L"skybox_vs.cso", L"skybox_ps.cso");
 
 	CreateDDSTextureFromFile(device, L"Textures/grass_pitch.dds", nullptr, m_textureGrass.ReleaseAndGetAddressOf());
 	CreateDDSTextureFromFile(device, L"Textures/goal_post.dds", nullptr, m_textureGoalPost.ReleaseAndGetAddressOf());
@@ -528,6 +545,7 @@ void Game::CreateDeviceDependentResources() {
 	CreateDDSTextureFromFile(device, L"Textures/bench.dds", nullptr, m_textureBench.ReleaseAndGetAddressOf());
 	CreateDDSTextureFromFile(device, L"Textures/metal_bench.dds", nullptr, m_textureMetalBench.ReleaseAndGetAddressOf());
 	CreateDDSTextureFromFile(device, L"Textures/leather_red.dds", nullptr, m_textureFlag.ReleaseAndGetAddressOf());
+	CreateDDSTextureFromFile(device, L"Textures/skybox.dds", nullptr, m_textureSkybox.ReleaseAndGetAddressOf());
 	m_world = Matrix::Identity;
 }
 
@@ -557,7 +575,7 @@ void Game::OnDeviceLost() {
 	m_batch.reset();
 	m_audEngine.reset();
 	m_audio_crowd_ambience.reset();
-	m_audio_ambience_loop.reset();
+	m_audio_ambience_loop_1.reset();
 	m_textureGrass.Reset();
 	m_batchInputLayout.Reset();
 }

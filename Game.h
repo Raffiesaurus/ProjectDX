@@ -99,9 +99,11 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_textureBench;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_textureMetalBench;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_textureFlag;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>                        m_textureSkybox;
 
 	Shader																	m_BasicShader;
-	Shader																	m_PitchBoxesShader;
+	Shader																	m_PitchShader;
+	Shader																	m_SkyboxShader;
 
 	ModelClass																m_GroundModel;
 	ModelClass																m_Pitch;
@@ -116,10 +118,7 @@ private:
 	ModelClass																m_MetalBench_2;
 	ModelClass																m_Man_1;
 	ModelClass																m_Man_2;
-	ModelClass																m_Floodlight_1;
-	ModelClass																m_Floodlight_2;
-	ModelClass																m_Floodlight_3;
-	ModelClass																m_Floodlight_4;
+	ModelClass																m_SkyboxCube;
 	ModelClass																m_Flag_1;
 	ModelClass																m_Flag_2;
 	ModelClass																m_Flag_3;
@@ -140,7 +139,14 @@ private:
 	std::unique_ptr<DirectX::SoundEffect>                                   m_audio_crowd_cheer;
 	std::unique_ptr<DirectX::SoundEffect>                                   m_audio_crowd_boo;
 	std::unique_ptr<DirectX::SoundEffect>									m_audio_crowd_ambience;
-	std::unique_ptr<DirectX::SoundEffectInstance>							m_audio_ambience_loop;
+	std::unique_ptr<DirectX::SoundEffectInstance>							m_audio_ambience_loop_1;
+	std::unique_ptr<DirectX::SoundEffectInstance>							m_audio_ambience_loop_2;
+
+	DirectX::AudioListener													m_listener1;
+	DirectX::AudioListener													m_listener2;
+	DirectX::AudioEmitter													m_emitter1;
+	DirectX::AudioEmitter													m_emitter2;
+
 
 	DirectX::SimpleMath::Quaternion											m_manStartRotation;
 	DirectX::SimpleMath::Quaternion											m_manEndRotation;
