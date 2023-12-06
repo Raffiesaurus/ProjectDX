@@ -39,5 +39,6 @@ private:
 	DirectX::Keyboard::KeyboardStateTracker m_KeyboardTracker;
 	DirectX::Mouse::ButtonStateTracker		m_MouseTracker;
 	InputCommands							m_GameInput;
+	std::unique_ptr<DirectX::GamePad> m_gamePad;
 };
 

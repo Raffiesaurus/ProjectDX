@@ -52,16 +52,9 @@ void Camera::Update() {
 	m_forward.y = r * sin(radianX);
 	m_forward.z = r * cos(radianY) * cos(radianX);
 	m_forward.Normalize();
-
-	//create right vector from look Direction
 	m_forward.Cross(DirectX::SimpleMath::Vector3::UnitY, m_right);
-
-	//update lookat point
 	m_lookat = m_position + m_forward;
-
-	//apply camera vectors and create camera matrix
 	m_cameraMatrix = (DirectX::SimpleMath::Matrix::CreateLookAt(m_position, m_lookat, DirectX::SimpleMath::Vector3::UnitY));
-
 }
 
 DirectX::SimpleMath::Matrix Camera::getCameraMatrix() {

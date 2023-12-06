@@ -89,12 +89,6 @@
     <FxCompile Include="basic_vs.hlsl">
       <Filter>Assets</Filter>
     </FxCompile>
-    <FxCompile Include="pitch_circle_ps.hlsl">
-      <Filter>Assets</Filter>
-    </FxCompile>
-    <FxCompile Include="pitch_circle_vs.hlsl">
-      <Filter>Assets</Filter>
-    </FxCompile>
     <FxCompile Include="pitch_boxes_ps.hlsl">
       <Filter>Assets</Filter>
     </FxCompile>
