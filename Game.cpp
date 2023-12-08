@@ -18,11 +18,10 @@ Game::Game() noexcept(false) {
 	m_deviceResources->RegisterDeviceNotify(this);
 	m_playerScore = 0;
 	m_oppScore = 0;
-	m_rotateMan = false;
 	m_manStartRotation = DirectX::SimpleMath::Quaternion::CreateFromAxisAngle(DirectX::SimpleMath::Vector3(0, 1, 0), 0);
 	m_manEndRotation = DirectX::SimpleMath::Quaternion::CreateFromAxisAngle(DirectX::SimpleMath::Vector3(0, 1, 0), 360);
-	m_rotateStartFrame = 0;
-	m_rotateEndFrame = 0;
+	m_rotateStartFrame = 0; 
+	m_rotateEndFrame = 90;
 }
 
 Game::~Game() {
@@ -57,7 +56,7 @@ void Game::Initialize(HWND window, int width, int height) {
 	m_Camera01.setRotation(Vector3(0.0f, -180.0f, 0.0f));
 
 	m_football_position = XMFLOAT3(0, 0.32, 0);
-	m_football_drag = 100;
+	m_football_frame_count = 100;
 
 	m_checkBallMoveFlag = false;
 
@@ -104,23 +103,23 @@ Camera Game::GetCamera() {
 void Game::Update(DX::StepTimer const& timer) {
 	double deltaTime = timer.GetElapsedSeconds();
 
-	if (m_gameInputCommands.rotX != 0) {
+	if (m_gameInputCommands.rotYAxis != 0) {
 		Vector3 rotation = m_Camera01.getRotation();
-		rotation.x += (-m_gameInputCommands.rotX * deltaTime * m_Camera01.getRotationSpeed());
-		m_gameInputCommands.rotX = 0;
-		if (rotation.x > 90) {
-			rotation.x = 90;
+		rotation.z -= (m_gameInputCommands.rotYAxis * deltaTime * m_Camera01.getRotationSpeed());
+		m_gameInputCommands.rotYAxis = 0;
+		if (rotation.z > 90) {
+			rotation.z = 90;
 		}
-		if (rotation.x < -90) {
-			rotation.x = -90;
+		if (rotation.z < -90) {
+			rotation.z = -90;
 		}
 		m_Camera01.setRotation(rotation);
 	}
 
-	if (m_gameInputCommands.rotY != 0) {
+	if (m_gameInputCommands.rotXAxis != 0) {
 		Vector3 rotation = m_Camera01.getRotation();
-		rotation.y += (-m_gameInputCommands.rotY * deltaTime * m_Camera01.getRotationSpeed());
-		m_gameInputCommands.rotY = 0;
+		rotation.y -= (m_gameInputCommands.rotXAxis * deltaTime * m_Camera01.getRotationSpeed());
+		m_gameInputCommands.rotXAxis = 0;
 		m_Camera01.setRotation(rotation);
 	}
 
@@ -185,7 +184,7 @@ void Game::Update(DX::StepTimer const& timer) {
 	float dx = abs(curPosition.x - m_football_position.x);
 	float dz = abs(curPosition.z - m_football_position.z);
 
-	if (dx + dz < 0.4) {
+	if (dx + dz <= 0.4) {
 		// Ball is in range
 		DirectX::SimpleMath::Vector3 direction = DirectX::SimpleMath::Vector3(m_football_position.x - curPosition.x, 0, m_football_position.z - curPosition.z);
 		direction.Normalize();
@@ -199,26 +198,26 @@ void Game::Update(DX::StepTimer const& timer) {
 
 	// Ball logic
 	if (m_football_offset.x > 0) {
-		m_football_offset.x -= (abs(m_football_offset.x) / m_football_drag);
-		m_football_position.x += (abs(m_football_offset.x) / m_football_drag);
+		m_football_offset.x -= (abs(m_football_offset.x) / m_football_frame_count);
+		m_football_position.x += (abs(m_football_offset.x) / m_football_frame_count);
 		m_football_rotation.x = 1;
 	}
 
 	if (m_football_offset.z > 0) {
-		m_football_offset.z -= (abs(m_football_offset.z) / m_football_drag);
-		m_football_position.z += (abs(m_football_offset.z) / m_football_drag);
+		m_football_offset.z -= (abs(m_football_offset.z) / m_football_frame_count);
+		m_football_position.z += (abs(m_football_offset.z) / m_football_frame_count);
 		m_football_rotation.z = 1;
 	}
 
 	if (m_football_offset.x < 0) {
-		m_football_offset.x += (abs(m_football_offset.x) / m_football_drag);
-		m_football_position.x -= (abs(m_football_offset.x) / m_football_drag);
+		m_football_offset.x += (abs(m_football_offset.x) / m_football_frame_count);
+		m_football_position.x -= (abs(m_football_offset.x) / m_football_frame_count);
 		m_football_rotation.x = -1;
 	}
 
 	if (m_football_offset.z < 0) {
-		m_football_offset.z += (abs(m_football_offset.z) / m_football_drag);
-		m_football_position.z -= (abs(m_football_offset.z) / m_football_drag);
+		m_football_offset.z += (abs(m_football_offset.z) / m_football_frame_count);
+		m_football_position.z -= (abs(m_football_offset.z) / m_football_frame_count);
 		m_football_rotation.z = -1;
 	}
 
@@ -300,7 +299,6 @@ void Game::Render() {
 	auto context = m_deviceResources->GetD3DDeviceContext();
 
 	context->OMSetBlendState(m_states->AlphaBlend(), nullptr, 0xFFFFFFFF);
-	context->OMSetDepthStencilState(m_states->DepthNone(), 0);
 	context->RSSetState(m_states->CullNone());
 
 	m_SkyboxShader.EnableShader(context);
@@ -308,9 +306,10 @@ void Game::Render() {
 	m_world *= SimpleMath::Matrix::CreateRotationX(XMConvertToRadians(180));
 	m_world *= SimpleMath::Matrix::CreateTranslation(m_Camera01.getPosition().x, m_Camera01.getPosition().y, m_Camera01.getPosition().z);
 	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureSkybox.Get());
+	context->OMSetDepthStencilState(m_states->DepthNone(), 0);
 	m_SkyboxCube.Render(context);
-
 	context->OMSetDepthStencilState(m_states->DepthDefault(), 0);
+
 
 	m_BasicShader.EnableShader(context);
 	m_world = SimpleMath::Matrix::Identity;
@@ -330,9 +329,8 @@ void Game::Render() {
 
 	m_world = SimpleMath::Matrix::Identity;
 	if (m_football_rotation.z != 0 || m_football_rotation.z != 0) {
-		DirectX::SimpleMath::Quaternion rotation = DirectX::SimpleMath::Quaternion::CreateFromAxisAngle(DirectX::SimpleMath::Vector3(m_football_rotation.z, 0, m_football_rotation.x), XMConvertToDegrees(m_timer.GetFrameCount() / 20.0f));
-		DirectX::SimpleMath::Matrix rotationMatrix = DirectX::SimpleMath::Matrix::CreateFromQuaternion(rotation);
-		m_world *= rotationMatrix;
+		DirectX::SimpleMath::Quaternion ballRotationQuat = DirectX::SimpleMath::Quaternion::CreateFromAxisAngle(DirectX::SimpleMath::Vector3(m_football_rotation.z, 0, m_football_rotation.x), XMConvertToDegrees(m_timer.GetFrameCount() / 20.0f));
+		m_world *= DirectX::SimpleMath::Matrix::CreateFromQuaternion(ballRotationQuat);;
 	}
 	m_football_translate = SimpleMath::Matrix::CreateTranslation(m_football_position);
 	m_world *= m_football_translate;
@@ -371,21 +369,12 @@ void Game::Render() {
 	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureMetalBench.Get());
 	m_MetalBench_2.Render(context);
 
+	m_rotateStartFrame++;
 	m_world = SimpleMath::Matrix::Identity;
 	m_world *= SimpleMath::Matrix::CreateScale(0.35);
 	m_world *= SimpleMath::Matrix::CreateRotationX(XMConvertToRadians(90));
-
-	if (m_rotateMan) {
-		DirectX::SimpleMath::Quaternion interpolatedRotation = DirectX::SimpleMath::Quaternion::Slerp(m_manStartRotation, m_manEndRotation, m_rotateStartFrame / m_rotateEndFrame);
-		m_world *= DirectX::SimpleMath::Matrix::CreateFromQuaternion(interpolatedRotation);
-		m_rotateStartFrame++;
-	}
-
-	if (m_timer.GetFrameCount() == 1) {
-		m_rotateMan = true;
-		m_rotateStartFrame = 0; m_rotateEndFrame = 90;
-	}
-
+	DirectX::SimpleMath::Quaternion manRotationQuat = DirectX::SimpleMath::Quaternion::Slerp(m_manStartRotation, m_manEndRotation, m_rotateStartFrame / m_rotateEndFrame);
+	m_world *= DirectX::SimpleMath::Matrix::CreateFromQuaternion(manRotationQuat);
 	m_world *= SimpleMath::Matrix::CreateTranslation(-8.5, 0.55, -0.5);
 	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texturePitchLine.Get());
 	m_Man_1.Render(context);
@@ -393,7 +382,7 @@ void Game::Render() {
 	m_world = SimpleMath::Matrix::Identity;
 	m_world *= SimpleMath::Matrix::CreateScale(0.35);
 	m_world *= SimpleMath::Matrix::CreateRotationX(XMConvertToRadians(90));
-	m_world *= SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(m_timer.GetFrameCount() * 1.15));
+	m_world *= SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(m_timer.GetFrameCount()));
 	m_world *= SimpleMath::Matrix::CreateTranslation(-8.5, 0.55, 0.5);
 	m_BasicShader.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_textureFlag.Get());
 	m_Man_2.Render(context);
@@ -432,6 +421,10 @@ void Game::Render() {
 
 	m_deviceResources->PIXBeginEvent(L"Draw sprite");
 	m_sprites->Begin();
+	m_font->DrawString(m_sprites.get(), scoreText.c_str(), m_scoreLocation + Vector2(1.f, 1.f), Colors:: White);
+	m_font->DrawString(m_sprites.get(), scoreText.c_str(), m_scoreLocation + +Vector2(-1.f, 1.f), Colors::White);
+	m_font->DrawString(m_sprites.get(), scoreText.c_str(), m_scoreLocation + +Vector2(1.f, -1.f), Colors::White);
+	m_font->DrawString(m_sprites.get(), scoreText.c_str(), m_scoreLocation + +Vector2(-1.f, -1.f), Colors::White);
 	m_font->DrawString(m_sprites.get(), scoreText.c_str(), m_scoreLocation, Colors::Black);
 	m_sprites->End();
 	m_deviceResources->PIXEndEvent();

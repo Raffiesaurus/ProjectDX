@@ -11,7 +11,7 @@ namespace {
 };
 
 //GLOBALS
-static bool s_fullscreen = true;	//Fullscreen mode on or off. 
+static bool s_fullscreen = false;	//Fullscreen mode on or off. 
 
 //PRE DECLARATION OF CALLBACK. 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
@@ -52,7 +52,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 		wcex.hCursor = LoadCursorW(nullptr, IDC_ARROW);
 		wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
 		wcex.lpszMenuName = nullptr;
-		wcex.lpszClassName = L"Beware of the tall grass.";
+		wcex.lpszClassName = L"Silver Park";
 		wcex.hIconSm = LoadIconW(wcex.hInstance, L"IDI_ICON");
 		if (!RegisterClassExW(&wcex))
 			return 1;
@@ -65,7 +65,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 
 		AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
 
-		HWND hwnd = CreateWindowExW(0, L"Beware of the tall grass.", L"Beware of the tall grass.", WS_OVERLAPPEDWINDOW,
+		HWND hwnd = CreateWindowExW(0, L"Silver Park", L"Silver Park", WS_OVERLAPPEDWINDOW,
 			CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, hInstance,
 			nullptr);
 

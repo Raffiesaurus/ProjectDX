@@ -21,8 +21,8 @@ void Input::Initialise(HWND window) {
 	m_GameInput.rotLeft = false;
 	m_GameInput.rotUp = false;
 	m_GameInput.rotDown = false;
-	m_GameInput.rotX = 0;
-	m_GameInput.rotY = 0;
+	m_GameInput.rotYAxis = 0;
+	m_GameInput.rotXAxis = 0;
 	m_GameInput.sprint = 1;
 }
 
@@ -35,7 +35,7 @@ void Input::Update() {
 	auto mouse = m_mouse->GetState();   //updates the basic mouse state
 	m_MouseTracker.Update(mouse);		//updates the more advanced mouse state. 
 
-	if (kb.Escape || gamepadState.IsViewPressed())// check has escape been pressed.  if so, quit out. 
+	if (kb.Escape || gamepadState.IsViewPressed())
 	{
 		m_quitApp = true;
 	}
@@ -72,12 +72,12 @@ void Input::Update() {
 		else								m_GameInput.sprint = 1;
 
 		// Camera Control
-		m_GameInput.rotX = float(mouse.y);
-		m_GameInput.rotY = float(mouse.x);
+		m_GameInput.rotYAxis = float(mouse.y);
+		m_GameInput.rotXAxis = float(mouse.x);
 
 		if (gamepadState.thumbSticks.rightX != 0 || gamepadState.thumbSticks.rightY != 0) {
-			m_GameInput.rotX = -float(gamepadState.thumbSticks.rightY) * 5;
-			m_GameInput.rotY = float(gamepadState.thumbSticks.rightX) * 5;
+			m_GameInput.rotYAxis = -float(gamepadState.thumbSticks.rightY) * 5;
+			m_GameInput.rotXAxis = float(gamepadState.thumbSticks.rightX) * 5;
 		}
 
 

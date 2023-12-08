@@ -45,12 +45,12 @@ void Camera::Update() {
 	if (m_position.y != 0.75) {
 		m_position.y = 0.75;
 	}
-	float radianX = (m_orientation.x) * 3.1415f / 180.0f;
-	float radianY = (m_orientation.y) * 3.1415f / 180.0f;
 	float r = 1.0f;
-	m_forward.x = r * sin(radianY) * cos(radianX);
-	m_forward.y = r * sin(radianX);
-	m_forward.z = r * cos(radianY) * cos(radianX);
+	float radianY = DirectX::XMConvertToRadians(m_orientation.y);
+	float radianZ = DirectX::XMConvertToRadians(m_orientation.z);
+	m_forward.x = r * sin(radianY) * cos(radianZ);
+	m_forward.y = r * sin(radianZ);
+	m_forward.z = r * cos(radianY) * cos(radianZ);
 	m_forward.Normalize();
 	m_forward.Cross(DirectX::SimpleMath::Vector3::UnitY, m_right);
 	m_lookat = m_position + m_forward;

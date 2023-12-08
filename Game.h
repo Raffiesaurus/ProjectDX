@@ -56,7 +56,7 @@ private:
 
 	float																	m_rotateStartFrame;
 	float																	m_rotateEndFrame;
-	float																	m_football_drag;
+	float																	m_football_frame_count;
 	float																	m_football_travel_time;
 
 	bool																	m_retryAudio;

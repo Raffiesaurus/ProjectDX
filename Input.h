@@ -14,8 +14,8 @@ struct InputCommands
 	bool rotLeft;
 	bool rotUp;
 	bool rotDown;
-	float rotX;
-	float rotY;
+	float rotYAxis;
+	float rotXAxis;
 	float sprint;
 };
 
